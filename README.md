@@ -4,7 +4,7 @@
 
 #### The Mac companion for DeepSeek Harness
 
-**Upstream DeepSeek Harness plans, codes, and calls tools. This companion gives it hands on your Mac — drag in your research files, capture one window safely, attach exactly one app for Computer Use.**
+**DeepSeek Harness thinks hard. On your Mac, though, it has no hands. HarnessMate gives it a pair — to hold your papers, look at one window, operate one app — always on your terms.**
 
 [简体中文](README.zh-CN.md) · English
 
@@ -18,53 +18,53 @@
 
 </div>
 
-## ✨ Why this project exists
+## ✨ Why HarnessMate exists
 
-Upstream Harness is already a strong agent runtime: planning, coding, tools, subagents, workflows. But on a Mac it stops at the browser tab — while your actual work lives in Finder, Preview, and other apps. The paper is in Finder, the result plot is in Preview, and the interface you need help with is in another app.
-
-This companion is the native layer that closes that gap. It does not fork or rewrite upstream — it hosts the verified runtime and adds what a Mac-native agent needs:
+Every Harness session started the same way for us: the agent had ideas, but the paper it needed was sitting in Finder, the chart it should read was open in Preview, and the app it was supposed to drive was one window over. So we copied paths, took screenshots by hand, and described interfaces in words. It got old fast. HarnessMate is the layer that fixes this — it runs the verified upstream runtime and adds the parts a Mac-native agent needs:
 
 <table align="center">
 <tr>
-<td align="center" width="33%"><b>📁 Research files, dropped</b><br>PDF, Office, Markdown, code, data, images, and mixed batches become managed, removable cards. Originals stay untouched.</td>
-<td align="center" width="33%"><b>🧾 Local artifact workbench</b><br>Bounded extraction, page-referenced PDF search, page rendering, opt-in OCR. What the model saw is never oversold.</td>
-<td align="center" width="33%"><b>📸 Appshot <code>⌘⇧⌥2</code></b><br>One-shot capture of the exact frontmost window, secrets masked in text and pixels, preview before save. A snapshot, not screen sharing.</td>
+<td align="center" width="33%"><b>📁 Research files, dropped</b><br>PDF, Office, Markdown, code, data, images — drag them in, they become cards. Originals stay exactly where you left them.</td>
+<td align="center" width="33%"><b>🧾 Local artifact workbench</b><br>Extract, search with page numbers, render pages, OCR. It says what it did — never “the model read the whole thing.”</td>
+<td align="center" width="33%"><b>📸 Appshot <code>⌘⇧⌥2</code></b><br>Captures the frontmost window only, masks secrets before you preview — and hides itself first, so no screenshot of the screenshot.</td>
 </tr>
 <tr>
-<td align="center" width="33%"><b>🖱️ Bounded Computer Use</b><br>Attach one exact app; Accessibility + in-memory OCR drive bounded actions, locked to the process lifetime and a fresh window snapshot.</td>
-<td align="center" width="33%"><b>🧭 Routing that fails closed</b><br>Native images only for verified provider/model pairs; unknown routes fall back to managed references — no pretending.</td>
-<td align="center" width="33%"><b>🔒 Verified upstream</b><br>Only the pinned, digest-checked runtime is accepted; unknown builds are refused.</td>
+<td align="center" width="33%"><b>🖱️ Bounded Computer Use</b><br>One app, your pick. Accessibility + in-memory OCR, locked to that process, and it stops to ask before anything consequential.</td>
+<td align="center" width="33%"><b>🧭 Routing that fails closed</b><br>Images go to the model only when that model truly sees images. Otherwise the pipeline quietly does something honest instead.</td>
+<td align="center" width="33%"><b>🔒 Verified upstream</b><br>One pinned runtime, digest-checked. Unknown builds don't even start.</td>
 </tr>
 </table>
 
 > [!IMPORTANT]
-> **Unofficial source preview.** This is an independent community project, not affiliated with or endorsed by DeepSeek. We publish source, not an Apple-notarized binary — [Distribution](docs/DISTRIBUTION.md) spells out exactly what blocks a public download and what we verify before shipping one. Build locally and review the permissions you enable.
+> **Unofficial source preview.** HarnessMate is an independent community project — not DeepSeek, and not endorsed by them. We publish source, not a notarized binary; [Distribution](docs/DISTRIBUTION.md) spells out exactly what has to happen before a public download exists. Build it locally, read the permissions you enable — you know your Mac better than we do.
 
-## 💬 What changes in everyday work
+## 💬 Three things that stop being annoying
 
 ### “Compare these papers—and tell me which page supports the answer.”
 
 Drag PDFs, Markdown, source code, Office files, images, or a mixed batch from Finder. They become removable draft cards tied to that conversation, while the originals stay untouched.
 
-PDFs and Office files are managed locally. A tool can extract bounded text, search a PDF with page references, or render selected pages when the task needs it. That is different from claiming the selected model natively understood the raw document — and we say so out loud.
+PDFs and Office files stay local, in a managed corner of your disk. When a task needs it, a tool extracts bounded text, searches a PDF with page numbers, or renders the pages the task actually uses. Notice the wording there: none of that is “the model understood your file.” We say what happened, and nothing more.
 
-A pure image batch keeps the upstream image route only when the exact provider and model are verified as image-capable. Unknown or text-only routes fall back to managed references instead of pretending the model saw pixels.
+Images get the same treatment. A pure image batch keeps the native image route only when that exact provider and model verifiably see images; anything uncertain falls back to managed references. No quiet pretending.
 
-Detailed limits and file-safety rules: [Artifact Bridge](integration/ARTIFACT_BRIDGE.md) and [Privacy](docs/PRIVACY.md).
+Rules and limits: [Artifact Bridge](integration/ARTIFACT_BRIDGE.md) and [Privacy](docs/PRIVACY.md).
 
 ### “Show the agent this window, but not my whole desktop or a password beside it.”
 
-Appshot (`⌘⇧⌥2`) captures the exact frontmost window once, masks likely secrets locally in both text and pixels, and gives you a preview. Nothing is saved until you confirm, and sending the result to a model remains an explicit action.
+Appshot (`⌘⇧⌥2`) grabs the frontmost window once, masks likely secrets in text and pixels, then shows you a preview. Nothing is saved until you confirm, and nothing reaches a model until you say so.
+
+Small detail we're genuinely proud of: the app hides its own window first, so your capture never contains a picture of the tool taking the picture.
 
 Appshot is a reviewable snapshot—not continuous screen sharing.
 
 ### “Look at this app and help me—but stop before anything consequential.”
 
-Attach one exact running Mac app. Harness can use Accessibility semantics and optional local OCR for that app's focused window, then perform bounded clicks, typing, scrolling, selection, or waits.
+Attach one running app — the exact one you pick. HarnessMate reads its Accessibility tree, OCRs the window in memory when needed, and performs bounded clicks, typing, scrolling, selection, or waits.
 
-The attachment is locked to the process, its lifetime, and a fresh window snapshot. Known login, Keychain, password-manager, secure-field, and system-security surfaces are blocked; likely secrets are redacted. These defenses cannot recognize every custom sensitive interface.
+The binding is to that process, for its lifetime, against a fresh window snapshot — not “click around the whole desktop.” Login screens, Keychain, password managers, secure fields, system security surfaces: blocked. Likely secrets: redacted. Custom-drawn apps can still smuggle something past these defenses, so give the preview a second look yourself.
 
-For sending, publishing, purchasing, deleting, installing, or changing permissions, the bundled safety instructions tell the agent to stop and ask for immediate, explicit confirmation. Computer Use screenshots stay in memory and are not sent as image blocks; bounded Accessibility/OCR **text** may enter model context and local session history.
+Before anything consequential — sending, publishing, buying, deleting, installing, changing permissions — the bundled safety rules make the agent stop and ask you, every time. Computer Use screenshots never leave memory as image blocks; the bounded Accessibility/OCR **text** may enter model context and local session history.
 
 <p align="center">
   <img src="docs/images/app-control.png" alt="Attaching one Mac app for bounded Computer Use" width="920">
@@ -72,21 +72,21 @@ For sending, publishing, purchasing, deleting, installing, or changing permissio
 
 <p align="center"><sub>Sanitized product demo based on the real interface. No user files, accounts, or API keys.</sub></p>
 
-This is useful semantic/OCR-assisted control. It is **not Codex-style end-to-end visual computer control**, and some custom-drawn interfaces will not work.
+This is semantic/OCR-assisted control, not Codex-style vision. Some custom-drawn interfaces won't cooperate. We'd rather be boring about that than oversell it.
 
-## 🧭 Models and tools that tell the truth
+## 🧭 An honest note on what the model sees
 
-Three rules govern how content reaches a model:
+Plenty of agent tools quietly imply the model saw an image it didn't. We don't. Three rules, no exceptions:
 
 | # | Rule | In practice |
 | --- | --- | --- |
-| 1 | **Capability first** | Routing follows the verified capability registry, nothing else. The DeepSeek rc.6 route is text-only: local extraction or OCR never becomes “native vision.” A Kimi route keeps native image blocks only when the selected model explicitly declares image input. |
-| 2 | **Fail closed** | Unknown, loading, mismatched, or expired records never guess upward — they fall back to managed files. When unsure, the pipeline does less, not more. |
-| 3 | **No fake promises** | Video upload and audio transcription are not shipped. Plugin Health reports startup discovery — not permanent availability — and the model may or may not invoke a registered tool. |
+| 1 | **Trust the registry, not vibes** | Routing follows the verified capability table, nothing else. The DeepSeek rc.6 route is text-only, full stop — local extraction and OCR are never rebranded as “native vision.” A Kimi route keeps image blocks only when that exact model declares image input. |
+| 2 | **When in doubt, do less** | Unknown, loading, mismatched, expired — all fall back to managed files. Getting this wrong once costs more trust than the feature was worth. |
+| 3 | **Don't promise what isn't there** | Video upload and audio transcription aren't shipped, so we don't list them. Plugin Health shows what started at launch — not a forever warranty — and no tool call is guaranteed just because a model registered it. |
 
-Provider keys are configured in **Harness Settings → Models**. They are not stored in this repository or in the model capability registry.
+Provider keys live in **Harness Settings → Models**. Never in this repository, never in the capability registry.
 
-## 🤝 What this companion contributes
+## 🤝 Who does what
 
 | Experience | Where it comes from |
 | --- | --- |
@@ -96,11 +96,11 @@ Provider keys are configured in **Harness Settings → Models**. They are not st
 | Finder file drop, managed research files, PDF / Office helpers, and removable draft cards | This companion |
 | Appshot, exact-app attachment, bounded Computer Use, capability routing, and plugin health | This companion |
 
-The companion hosts and extends the verified upstream client; it does not replace or rewrite Harness.
+HarnessMate hosts and extends the verified upstream client. We don't replace it, and we won't pretend to be it.
 
 ## 🛠️ Quick start from source
 
-Current targets: companion **1.4.1 (build 6)**, upstream **`@deepseek-ai/dsh@0.1.0-rc.6`**, macOS **14+**, and Apple Silicon. Intel is not yet validated.
+Current targets: companion **1.4.1 (build 6)**, upstream **`@deepseek-ai/dsh@0.1.0-rc.6`**, macOS **14+**, Apple Silicon. Intel is not yet validated.
 
 Requirements: Xcode Command Line Tools with Swift 5.10+, Node.js 22, and npm.
 
@@ -112,7 +112,7 @@ cd harness-mate
 ./scripts/build_and_run.sh package
 ```
 
-`dsh --version` must report `0.1.0-rc.6`. The companion also checks the verified executable digest and refuses an unknown build.
+Why pin the runtime? Upstream previews change plugin slots and UI often enough that “works with rc.6” is a promise we can actually keep, while “works with whatever you installed” is a gamble. So `dsh --version` must report `0.1.0-rc.6`, and the companion verifies the executable digest and refuses unknown builds.
 
 The package command uses ad-hoc signing and creates `outputs/DeepSeek Harness.zip`; it does not install a certificate or modify your keychain.
 
@@ -138,9 +138,9 @@ On first launch, configure a provider in **Settings → Models**. Keep only one 
 
 Harness is served on a random loopback port in a non-persistent `WKWebView`. That reduces accidental collisions; it is not a complete authentication or sandbox boundary. Read [Privacy](docs/PRIVACY.md) and [Security](SECURITY.md) before enabling control for sensitive apps.
 
-## 🗺️ Status and roadmap
+## 🗺️ Status: why there's no .dmg yet
 
-Being a source preview is a deliberate choice, not an accident: we will not publish a public binary until it earns one.
+No downloadable binary yet — on purpose. An unsigned, unnotarized build just gets blocked by Gatekeeper on someone else's Mac; shipping one would be a trap, not a release. The full checklist lives in [Distribution](docs/DISTRIBUTION.md), and we'll publish the day every box is checked.
 
 | Today — source preview | Next on the roadmap |
 | --- | --- |
@@ -150,11 +150,9 @@ Being a source preview is a deliberate choice, not an accident: we will not publ
 | Main interface is upstream web UI inside `WKWebView`, not a full SwiftUI rewrite | |
 | No general video upload, audio transcription, automatic permission granting, guaranteed tool invocation, or Codex-equivalent visual control | |
 
-See [Distribution](docs/DISTRIBUTION.md) for the exact checklist a public binary must pass.
-
 ## 🧪 Build confidence
 
-CI covers compilation and deterministic checks. The repository also includes artifact, Appshot, native file-drop, real `WKWebView` drop-lifecycle, and disposable-window Computer Use suites. Full artifact tests require [`uv`](https://docs.astral.sh/uv/); real OCR, permissions, and window actions must still be verified locally in a logged-in macOS session.
+CI compiles and runs deterministic checks, and the repository ships fixture-based suites for the artifact bridge, Appshot, native file drop, the real `WKWebView` drop lifecycle, and disposable-window Computer Use. Full artifact tests need [`uv`](https://docs.astral.sh/uv/); real OCR, permissions, and window actions still have to be verified by a human on a logged-in Mac — automation can't grant itself Accessibility, and honestly, it shouldn't.
 
 ```bash
 swift build --package-path app -c release
@@ -181,3 +179,5 @@ swift build --package-path app -c release
 ## ⚖️ License and acknowledgements
 
 This companion source is available under the [MIT License](LICENSE). See [NOTICE](NOTICE.md) for upstream attribution and trademark boundaries. Issues and focused pull requests are welcome; report vulnerabilities privately through [SECURITY.md](SECURITY.md).
+
+If HarnessMate ever saves you an afternoon, open an issue and say so — that's the entire marketing budget.
