@@ -32,7 +32,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Validate public manifests and shell scripts
-        shell: zsh
+        shell: bash
         run: |
           python3 -m json.tool integration/model-capabilities.json >/dev/null
           node -e 'JSON.parse(require("node:fs").readFileSync("integration/dsh-home-template/profiles/web/node_modules/@tengqi/dsh-native-attachments/package.json", "utf8"))'
