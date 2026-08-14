@@ -17,6 +17,7 @@ The app uses this private application-support area:
 │   ├── Renders/                  immutable PDF page renders
 │   └── Exports/                  destination for separately authorized outputs
 ├── app-bridge-selection.json     exact attached-app identity
+├── remote-host-selection.json    expiring SSH host/workspace identity
 └── drafts/<id>/SKILL.md          review-only Computer Use recording drafts
 ```
 
@@ -57,6 +58,18 @@ Computer Use screenshots are used in memory and are not written to disk by the b
 
 The current control bridge is semantic Accessibility/OCR automation. It is not equivalent to a general vision model that receives and understands the raw screen.
 
+## SSH Remote Compute
+
+SSH is off until the user chooses one concrete top-level alias from `~/.ssh/config` and one absolute remote workspace. The app stores an owner-only selection record containing a random selection ID, selection/expiry times, alias, resolved hostname, username, port, and workspace. It expires within 24 hours. It does not contain a password, private key, passphrase, authentication token, or copied SSH configuration.
+
+The bridge uses `/usr/bin/ssh` with strict host-key checking and non-interactive public-key authentication. Authentication is handled by OpenSSH and the user's existing `ssh-agent`; HarnessMate does not read private-key contents. The app passes `SSH_AUTH_SOCK` to its private Harness process so the specialized bridge can authenticate. The upstream Full-access shell in that same process can also invoke SSH, so the specialized bridge's confirmations are workflow controls rather than an unbypassable sandbox.
+
+Commands, file paths, server facts, logs, and transferred data are private server information. Bounded, best-effort-redacted tool results can enter the Harness conversation, local session history, and configured model-provider request; redaction cannot recognize every secret format. Uploaded files leave the Mac and are written under the selected remote workspace. Downloads leave the server and are published under `Artifacts/Downloads` on the Mac. Neither direction is secure erasure.
+
+Background jobs persist under `<workspace>/.harnessmate/jobs/<id>/`, including a generated script, PID/PGID/start-time identity, state, and stdout/stderr logs. A job can keep running after HarnessMate disconnects, and 1.6.0 does not automatically remove these server-side records. The remote files are not redacted at rest; only bounded tool results receive local best-effort redaction before returning to Harness. Do not put credentials directly in commands, generated scripts, or logs.
+
+The source preview does not support password or MFA prompts, interactive TTY, jump hosts, SSH tunnels/forwarding, or automatic host-key acceptance. Full behavior and Linux requirements are documented in [SSH Remote Compute](SSH_REMOTE_COMPUTE.md).
+
 ## Permissions
 
 macOS owns the Accessibility and Screen Recording permission databases. The app can show status, open the relevant System Settings pane, or trigger Apple’s permission prompt after a user action; it cannot silently grant itself access.
@@ -73,6 +86,7 @@ The companion’s local file/OCR helpers do not implement their own cloud upload
 - the user’s configured DeepSeek, Kimi, or other model provider;
 - npm/runtime installation and update checks;
 - links the user opens in the embedded or external browser.
+- the system OpenSSH connection the user explicitly selects for remote compute.
 
 Review the provider, selected model, and attachment preview before sending sensitive material. Provider retention, training, regional processing, and deletion terms are outside this project’s control.
 
@@ -84,7 +98,7 @@ The current source preview does not include an in-app per-artifact deletion cont
 ~/Library/Application Support/DeepSeek Harness/
 ```
 
-This does not delete the separate global `~/.dsh` profile, provider-side conversation data, macOS backups, clipboard history, or files exported elsewhere. Remove Accessibility and Screen Recording entries separately in System Settings.
+This does not delete the separate global `~/.dsh` profile, provider-side conversation data, macOS backups, clipboard history, remote-server files/jobs, or files exported elsewhere. Remove Accessibility and Screen Recording entries separately in System Settings. Deleting the selection record stops the specialized SSH bridge from using that target; it does not revoke the SSH key or agent identity itself.
 
 ## Privacy reports
 

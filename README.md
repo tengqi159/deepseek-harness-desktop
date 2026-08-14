@@ -1,10 +1,10 @@
 <div align="center">
 
-# HarnessMate
+# HarnessMate — DeepSeek Harness for macOS
 
-#### The Mac companion for DeepSeek Harness
+#### A native Mac companion for DeepSeek Harness
 
-**DeepSeek Harness thinks hard. On your Mac, though, it has no hands. HarnessMate gives it a pair — to hold your papers, look at one window, operate one app — always on your terms.**
+**DeepSeek Harness thinks hard. On your Mac, though, it has no hands. HarnessMate gives it a pair — to hold your papers, look at one window, operate one app, and keep a training job moving on your server — always on your terms.**
 
 [简体中文](README.zh-CN.md) · English
 
@@ -31,14 +31,14 @@ Every Harness session started the same way for us: the agent had ideas, but the 
 <tr>
 <td align="center" width="33%"><b>🖱️ Bounded Computer Use</b><br>One app, your pick. Accessibility + in-memory OCR, locked to that process, and it stops to ask before anything consequential.</td>
 <td align="center" width="33%"><b>🧭 Routing that fails closed</b><br>Images go to the model only when that model truly sees images. Otherwise the pipeline quietly does something honest instead.</td>
-<td align="center" width="33%"><b>🔒 Verified upstream</b><br>One pinned runtime, digest-checked. Unknown builds don't even start.</td>
+<td align="center" width="33%"><b>🖥️ SSH remote compute</b><br>Pick one server alias and one workspace, then inspect GPUs, launch training, follow logs, and bring results home.</td>
 </tr>
 </table>
 
 > [!IMPORTANT]
 > **Unofficial source preview.** HarnessMate is an independent community project — not DeepSeek, and not endorsed by them. We publish source, not a notarized binary; [Distribution](docs/DISTRIBUTION.md) spells out exactly what has to happen before a public download exists. Build it locally, read the permissions you enable — you know your Mac better than we do.
 
-## 💬 Three things that stop being annoying
+## 💬 Four things that stop being annoying
 
 ### “Compare these papers—and tell me which page supports the answer.”
 
@@ -74,12 +74,20 @@ Before anything consequential — sending, publishing, buying, deleting, install
 
 This is semantic/OCR-assisted control, not Codex-style vision. Some custom-drawn interfaces won't cooperate. We'd rather be boring about that than oversell it.
 
+### “Run this training on my server—and keep the logs coming.”
+
+Choose **Remote Server** in the Mac toolbar, pick an explicit alias from `~/.ssh/config`, and bind one absolute Linux workspace. HarnessMate remembers that exact alias, resolved endpoint, and workspace for at most 24 hours. It can then inspect the machine, run a bounded command, start a background job, follow logs, cancel that exact job, or stream files into and out of the selected workspace.
+
+After you choose the server, the model may automatically use fixed read-only inspection and log tools when the task clearly needs them. Running **any** arbitrary remote command, starting or cancelling a job, or transferring a file requires a fresh, exact confirmation in the conversation. That confirmation is an agent workflow rule, not an unforgeable macOS approval token; **Full access** still includes the upstream shell and is not a remote sandbox.
+
+The first release deliberately stays boring: system OpenSSH, public-key authentication or your existing `ssh-agent`, strict host-key checking, one selected host, one workspace. No stored SSH password, no password/MFA prompt, no interactive TTY, and no `ProxyJump` / `ProxyCommand`. Background-job tracking and transfer validation target Linux servers with `/proc` and standard GNU tools. See [SSH Remote Compute](docs/SSH_REMOTE_COMPUTE.md) for the exact boundary.
+
 ### “Will Harness use this by itself, or do I have to summon it?”
 
 The composer now has a compact, color-coded capability menu instead of another wall of plugin names. It reads the current session's command, Skill, and companion-plugin catalogs every time it opens, then says what each item actually means:
 
 - **Model may auto-select** — the model can choose the Skill when the task matches; it is available, not guaranteed to run.
-- **After import / After attach** — the bridge is running, but a file or one exact Mac app must be supplied first.
+- **After import / After attach / After server selection** — the bridge is running, but a file, one exact Mac app, or one explicit SSH target must be supplied first.
 - **Manual** — commands such as plan, goal, export, and permission only run when you choose them.
 - **Running / Loading / Disabled** — live startup state, kept separate from the invocation label.
 
@@ -105,15 +113,15 @@ Provider keys live in **Harness Settings → Models**. Never in this repository,
 | Provider adapters, including supported Kimi routes, plus the Skill / MCP framework | Upstream `@deepseek-ai/dsh` |
 | Native app window, toolbar, app lifecycle, and no required browser tab | This companion |
 | Finder file drop, managed research files, PDF / Office helpers, and removable draft cards | This companion |
-| Appshot, exact-app attachment, bounded Computer Use, capability routing, plugin health, and the color-coded capability menu | This companion |
+| Appshot, exact-app attachment, bounded Computer Use, SSH remote compute, capability routing, plugin health, and the color-coded capability menu | This companion |
 
 HarnessMate hosts and extends the verified upstream client. We don't replace it, and we won't pretend to be it.
 
 ## 🛠️ Quick start from source
 
-Current targets: companion **1.5.0 (build 7)**, upstream **`@deepseek-ai/dsh@0.1.0-rc.6`**, macOS **14+**, and Apple Silicon. Intel is not yet validated.
+Current targets: companion **1.6.0 (build 8)**, upstream **`@deepseek-ai/dsh@0.1.0-rc.6`**, macOS **14+**, and Apple Silicon. Intel is not yet validated.
 
-Requirements: Xcode Command Line Tools with Swift 5.10+, Node.js 22, and npm.
+Requirements: Xcode Command Line Tools with Swift 5.10+, Node.js 22, npm, and the system OpenSSH client for remote compute.
 
 ```bash
 npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
@@ -146,6 +154,7 @@ On first launch, configure a provider in **Settings → Models**. Keep only one 
 | Screen Recording | Appshot and optional focused-window OCR | Does not turn on continuous remote viewing |
 | Provider API | Conversations and content you or a workflow sends | Does not make local files private after you choose to send extracted content |
 | Managed files | Local research-file workflows under Application Support | Does not modify originals; removing a draft card does not delete the managed copy |
+| SSH config and agent | Resolves aliases and authenticates with the system OpenSSH client | HarnessMate does not read or store private-key material or passwords; the selected server receives commands and transferred files |
 
 Harness is served on a random loopback port in a non-persistent `WKWebView`. That reduces accidental collisions; it is not a complete authentication or sandbox boundary. Read [Privacy](docs/PRIVACY.md) and [Security](SECURITY.md) before enabling control for sensitive apps.
 
@@ -160,16 +169,19 @@ No downloadable binary yet — on purpose. An unsigned, unnotarized build just g
 | Only the verified upstream rc.6 runtime and digest are accepted | Broader architecture qualification |
 | Main interface is upstream web UI inside `WKWebView`, not a full SwiftUI rewrite | |
 | No general video upload, audio transcription, automatic permission granting, guaranteed tool invocation, or Codex-equivalent visual control | |
+| SSH remote compute is Linux/public-key/non-interactive only; no password, MFA, TTY, jump host, or general remote-desktop support | Broader server compatibility and a stronger native approval gate |
 
 ## 🧪 Build confidence
 
-CI compiles and runs deterministic checks, and the repository ships fixture-based suites for the artifact bridge, Appshot, native file drop, the real `WKWebView` drop lifecycle, and disposable-window Computer Use. Full artifact tests need [`uv`](https://docs.astral.sh/uv/); real OCR, permissions, and window actions still have to be verified by a human on a logged-in Mac — automation can't grant itself Accessibility, and honestly, it shouldn't.
+CI compiles and runs deterministic checks, and the repository ships fixture-based suites for the artifact bridge, Appshot, native file drop, the real `WKWebView` drop lifecycle, disposable-window Computer Use, the native SSH host selector, and an isolated fake-SSH server. Full artifact tests need [`uv`](https://docs.astral.sh/uv/); real OCR, permissions, window actions, and a real server still require deliberate local acceptance — the automated SSH suite never opens a network connection.
 
 ```bash
 swift build --package-path app -c release
 ./scripts/test_artifact_bridge.sh
 ./scripts/test_appshot_qa.sh
 ./scripts/test_capability_catalog.sh
+./scripts/test_remote_host_store.sh
+./scripts/test_ssh_bridge.sh
 ./scripts/test_native_file_drop.sh
 ./scripts/test_webview_file_drop.sh
 ./scripts/test_app_bridge_e2e.sh
@@ -184,6 +196,7 @@ swift build --package-path app -c release
 <a href="docs/DISTRIBUTION.md">📦 Distribution</a> ·
 <a href="integration/ARTIFACT_BRIDGE.md">🧾 Artifact Bridge</a> ·
 <a href="app/APP_BRIDGE_TESTING.md">🖱️ Computer Use testing</a> ·
+<a href="docs/SSH_REMOTE_COMPUTE.md">🖥️ SSH Remote Compute</a> ·
 <a href="CONTRIBUTING.md">🤝 Contributing</a>
 
 </div>

@@ -8,6 +8,7 @@ struct DeepSeekHarnessMacApp: App {
     @StateObject private var artifactStore = ArtifactStore()
     @StateObject private var appshotStore = AppshotStore()
     @StateObject private var modelCapabilityStore = ModelCapabilityStore()
+    @StateObject private var remoteHostStore = RemoteHostStore()
 
     var body: some Scene {
         WindowGroup("DeepSeek Harness") {
@@ -15,7 +16,8 @@ struct DeepSeekHarnessMacApp: App {
                 harness: harness,
                 artifactStore: artifactStore,
                 appshotStore: appshotStore,
-                modelCapabilityStore: modelCapabilityStore
+                modelCapabilityStore: modelCapabilityStore,
+                remoteHostStore: remoteHostStore
             )
                 .task {
                     appDelegate.harness = harness

@@ -26,6 +26,7 @@ final class HarnessService: ObservableObject {
     @Published private(set) var artifactsPluginHealth: PluginHealthState = .checking
     @Published private(set) var nativeAttachmentsPluginHealth: PluginHealthState = .checking
     @Published private(set) var capabilityCatalogPluginHealth: PluginHealthState = .checking
+    @Published private(set) var remoteComputePluginHealth: PluginHealthState = .checking
     @Published private(set) var standardPresetPluginHealth: PluginHealthState = .checking
 
     private var process: Process?
@@ -51,6 +52,7 @@ final class HarnessService: ObservableObject {
         artifactsPluginHealth = .checking
         nativeAttachmentsPluginHealth = .checking
         capabilityCatalogPluginHealth = .checking
+        remoteComputePluginHealth = .checking
         standardPresetPluginHealth = .checking
         isStopping = false
 
@@ -117,6 +119,7 @@ final class HarnessService: ObservableObject {
         artifactsPluginHealth = .checking
         nativeAttachmentsPluginHealth = .checking
         capabilityCatalogPluginHealth = .checking
+        remoteComputePluginHealth = .checking
         standardPresetPluginHealth = .checking
         outputPipe?.fileHandleForReading.readabilityHandler = nil
 
@@ -140,6 +143,7 @@ final class HarnessService: ObservableObject {
             artifactsPluginHealth = .error("本地 Harness 尚未就绪")
             nativeAttachmentsPluginHealth = .error("本地 Harness 尚未就绪")
             capabilityCatalogPluginHealth = .error("本地 Harness 尚未就绪")
+            remoteComputePluginHealth = .error("本地 Harness 尚未就绪")
             standardPresetPluginHealth = .error("本地 Harness 尚未就绪")
             return
         }
@@ -149,6 +153,7 @@ final class HarnessService: ObservableObject {
         artifactsPluginHealth = .checking
         nativeAttachmentsPluginHealth = .checking
         capabilityCatalogPluginHealth = .checking
+        remoteComputePluginHealth = .checking
         standardPresetPluginHealth = .checking
 
         pluginHealthTask = Task { @MainActor [weak self] in
@@ -174,6 +179,10 @@ final class HarnessService: ObservableObject {
                 )
                 self.capabilityCatalogPluginHealth = self.pluginHealth(
                     entryID: "include:capability-catalog",
+                    entries: entries
+                )
+                self.remoteComputePluginHealth = self.pluginHealth(
+                    entryID: "include:mcp-remote-compute",
                     entries: entries
                 )
                 self.standardPresetPluginHealth = self.pluginHealth(
@@ -203,6 +212,7 @@ final class HarnessService: ObservableObject {
                 self.artifactsPluginHealth = .error(detail)
                 self.nativeAttachmentsPluginHealth = .error(detail)
                 self.capabilityCatalogPluginHealth = .error(detail)
+                self.remoteComputePluginHealth = .error(detail)
                 self.standardPresetPluginHealth = .error(detail)
             }
         }
@@ -256,7 +266,14 @@ final class HarnessService: ObservableObject {
         environment["DSH_HOME"] = installation.home.path
         environment["DSH_APP_BRIDGE_BIN"] = installation.helperBinary.path
         environment["DSH_ARTIFACT_BRIDGE_BIN"] = installation.artifactHelperBinary.path
+        environment["DSH_SSH_BRIDGE_BIN"] = installation.sshHelperBinary.path
         environment["DSH_APP_BRIDGE_PARENT_PID"] = String(getpid())
+
+        // Authentication remains owned by the user's system OpenSSH agent. The
+        // bridge never stores passwords or private-key material.
+        if let agentSocket = inherited["SSH_AUTH_SOCK"], !agentSocket.isEmpty {
+            environment["SSH_AUTH_SOCK"] = agentSocket
+        }
 
         let standardPath = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         environment["PATH"] = runtime.binDirectory + ":" + standardPath
@@ -452,6 +469,7 @@ final class HarnessService: ObservableObject {
         artifactsPluginHealth = .error("本地 Harness 未就绪")
         nativeAttachmentsPluginHealth = .error("本地 Harness 未就绪")
         capabilityCatalogPluginHealth = .error("本地 Harness 未就绪")
+        remoteComputePluginHealth = .error("本地 Harness 未就绪")
         standardPresetPluginHealth = .error("本地 Harness 未就绪")
     }
 

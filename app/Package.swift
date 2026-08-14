@@ -11,6 +11,7 @@ let package = Package(
         .executable(name: "DeepSeekHarnessMac", targets: ["DeepSeekHarnessMac"]),
         .executable(name: "DeepSeekAppBridge", targets: ["DeepSeekAppBridge"]),
         .executable(name: "DeepSeekArtifactBridge", targets: ["DeepSeekArtifactBridge"]),
+        .executable(name: "DeepSeekSSHBridge", targets: ["DeepSeekSSHBridge"]),
         .executable(name: "DeepSeekBridgeFixture", targets: ["DeepSeekBridgeFixture"])
     ],
     targets: [
@@ -25,6 +26,10 @@ let package = Package(
         .executableTarget(
             name: "DeepSeekArtifactBridge",
             path: "Sources/DeepSeekArtifactBridge"
+        ),
+        .executableTarget(
+            name: "DeepSeekSSHBridge",
+            path: "Sources/DeepSeekSSHBridge"
         ),
         .executableTarget(
             name: "DeepSeekBridgeFixture",

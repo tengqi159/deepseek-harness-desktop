@@ -32,6 +32,22 @@
           maxDelayMs: 10000
           maxAttempts: 5
 
+- insert:
+    - id: mcp-remote-compute
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: remote
+        transport: stdio
+        command: !!js process.env.DSH_SSH_BRIDGE_BIN
+        args: []
+        toolCallTimeoutMs: 300000
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 10000
+          maxAttempts: 5
+
 # Additive browser-only companion for native managed-file drops. The package
 # lives in the managed Web profile's node_modules and declares the official
 # rc.6 dsh.client entry; no upstream Harness bundle is patched.

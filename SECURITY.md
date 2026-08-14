@@ -1,6 +1,6 @@
 # Security policy
 
-HarnessMate can read user-selected files and, only after the user grants macOS permissions, inspect or control one explicitly attached application. Security and privacy regressions are therefore treated as release-blocking issues.
+HarnessMate can read user-selected files, connect to one explicitly selected SSH workspace, and—only after the user grants macOS permissions—inspect or control one attached application. Security and privacy regressions are therefore treated as release-blocking issues.
 
 ## Supported versions
 
@@ -38,6 +38,10 @@ Please report suspected issues involving:
 - an Appshot being saved, copied, or routed without the documented confirmation;
 - permissions being requested or changed without a clear user action;
 - command injection, unsafe helper discovery, or a bypass of the pinned runtime check.
+- an SSH action reaching a host, user, port, or workspace other than the current explicit selection;
+- SSH path traversal, symbolic-link races, unbounded downloads, stale job identity, or cancellation of the wrong process;
+- SSH passwords, private-key material, agent protocol data, server addresses, commands, or logs leaking into the repository or public reports;
+- a consequential remote action being described as natively approved when it was only model-confirmed.
 
 ## Security boundaries
 
@@ -45,6 +49,9 @@ Please report suspected issues involving:
 - Computer Use is bound to the exact selected process lifetime and focused window. A fresh state snapshot is required for actions.
 - Screen pixels used for Computer Use OCR stay in memory; locally redacted text may enter the Harness conversation and can then be sent to the configured model provider.
 - User-imported files and confirmed Appshots are local managed copies. Extraction results or approved attachments may enter model context when a workflow uses them.
+- SSH Remote Compute uses the system OpenSSH client, an expiring exact host/workspace selection, and bounded tool results. It does not store passwords or private-key contents. Commands, logs, paths, server facts, and transferred files can leave one machine and enter model/session context.
+- Remote confirmation fields and the bundled Skill are model-workflow controls, not an unforgeable native approval token. The upstream Full-access shell can invoke SSH directly, so the specialized bridge is not an account or network sandbox.
+- Remote job identity and workspace validation assume a cooperative Linux host with `/proc` and standard GNU tools. They do not defend against a compromised remote kernel, SSH server, or account.
 - Model/provider accounts, network transport, and upstream Harness behavior remain governed by their own software and terms.
 
 See [Privacy](docs/PRIVACY.md) for the data-flow description and [Distribution](docs/DISTRIBUTION.md) for signing and notarization boundaries.

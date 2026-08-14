@@ -1,10 +1,10 @@
 <div align="center">
 
-# HarnessMate
+# HarnessMate — DeepSeek Harness for macOS
 
 #### DeepSeek Harness 的 Mac 拍档
 
-**DeepSeek Harness 会思考，但它在你的 Mac 上没有手。HarnessMate 给它一双——拿论文、看窗口、操作一个 App，全都听你的。**
+**DeepSeek Harness 会思考，但它在你的 Mac 上没有手。HarnessMate 给它一双——拿论文、看窗口、操作一个 App，也能盯着服务器上的训练任务，全都听你的。**
 
 简体中文 · [English](README.md)
 
@@ -31,14 +31,14 @@
 <tr>
 <td align="center" width="33%"><b>🖱️ 受控 Computer Use</b><br>只绑定你选的那一个 App，点到为止；重要操作停下来先问你。</td>
 <td align="center" width="33%"><b>🧭 失败即降级的路由</b><br>图片只有模型真能看时才给模型看；拿不准就回退到受管引用，不假装。</td>
-<td align="center" width="33%"><b>🔒 验证过的上游</b><br>只认钉版、摘要校验过的运行时，来路不明的直接不启动。</td>
+<td align="center" width="33%"><b>🖥️ SSH 远程计算</b><br>选定一个服务器和工作目录，就能看 GPU、跑训练、追日志、把结果带回来。</td>
 </tr>
 </table>
 
 > [!IMPORTANT]
 > **非官方源码预览版。** HarnessMate 是独立的社区项目，和 DeepSeek 没有隶属关系，也没拿过任何背书。我们发的是源码，不是公证过的二进制；一份公开下载版要满足哪些条件，都写在[分发说明](docs/DISTRIBUTION.md)里。请从源码本机构建，自己开的权限自己过一遍——你的 Mac 你比我们懂。
 
-## 💬 三件不再烦你的事
+## 💬 四件不再烦你的事
 
 ### “比较这几篇论文，并告诉我答案对应哪一页。”
 
@@ -74,12 +74,20 @@ Appshot 是一次性、可检查的快照，不是持续共享屏幕。
 
 这是基于语义控件和 OCR 的辅助操作，不是 Codex 式的端到端视觉控制；有些自绘界面不配合。这种事我们宁可把话说无聊，也不想吹过头。
 
+### “把训练丢到服务器上跑，日志也帮我盯着。”
+
+在 Mac 工具栏里打开**远程服务器**，从 `~/.ssh/config` 里选一个明确的别名，再绑定一个绝对 Linux 工作目录。HarnessMate 最多记住 24 小时，并同时锁定这个别名解析出的地址、用户、端口和工作目录。之后它可以检查机器、执行有时间边界的命令、启动后台训练、持续读日志、取消那一个确切任务，或在选定工作目录内上传下载文件。
+
+选好服务器后，任务确实需要时，模型可以自动选择固定的只读检查和日志工具。执行**任何自定义远程命令**、启动/取消任务、上传或下载文件，都要求在当前对话中再次给出明确而具体的确认。这里的确认是 Agent 工作流规则，不是不可伪造的 macOS 授权令牌；**Full access** 仍包含上游 Shell，所以它不是远程沙箱。
+
+第一版故意收得很窄：使用系统 OpenSSH，只支持公钥或你现有的 `ssh-agent`，严格检查主机密钥，一次只选一台服务器和一个工作目录。不保存 SSH 密码，不支持密码/MFA 提示、交互式 TTY，也不支持 `ProxyJump` / `ProxyCommand`。后台任务跟踪和文件传输校验面向带 `/proc` 与常见 GNU 工具的 Linux 服务器。完整边界见 [SSH 远程计算](docs/SSH_REMOTE_COMPUTE.md)。
+
 ### “它到底会自己调用，还是必须先把插件召唤出来？”
 
 输入框现在有一个彩色分组的“能力与插件”菜单，不再把几十个底层插件名堆成一堵文字墙。每次打开，它都会读取当前会话真实的命令、Skills 和伴生插件清单，并直接告诉你每项能力的含义：
 
 - **模型可自动选择**：任务匹配时模型可以选择这个 Skill；表示可以使用，不代表这一轮必定调用。
-- **导入文件后 / 附加应用后**：桥接已经运行，但你必须先提供文件，或先附加一个确切的 Mac App。
+- **导入文件后 / 附加应用后 / 选择服务器后**：桥接已经运行，但你必须先提供文件、附加一个确切的 Mac App，或明确选择一个 SSH 目标。
 - **手动触发**：plan、goal、export、permission 等命令只会在你选择后执行。
 - **运行中 / 加载中 / 已停用**：这是实时启动状态，与“能否自动调用”分开显示。
 
@@ -105,15 +113,15 @@ API key 在 **Harness 设置 → Models** 里配。不进仓库，也不进能�
 | 提供方适配（包括受支持的 Kimi 路由）以及 Skill / MCP 框架 | 上游 `@deepseek-ai/dsh` |
 | 原生 App 窗口、工具栏、生命周期，以及无需单独浏览器标签 | HarnessMate |
 | Finder 文件拖放、受管研究文件、PDF / Office 助手与可移除草稿卡片 | HarnessMate |
-| Appshot、精确 App 附加、受限 Computer Use、能力路由、插件健康与彩色能力菜单 | HarnessMate |
+| Appshot、精确 App 附加、受限 Computer Use、SSH 远程计算、能力路由、插件健康与彩色能力菜单 | HarnessMate |
 
 HarnessMate 承载并扩展经过验证的上游客户端。不替代它，也不冒充它。
 
 ## 🛠️ 从源码快速开始
 
-当前目标：桌面伴侣 **1.5.0（build 7）**、上游 **`@deepseek-ai/dsh@0.1.0-rc.6`**、macOS **14+**、Apple Silicon。Intel 暂未验证。
+当前目标：桌面伴侣 **1.6.0（build 8）**、上游 **`@deepseek-ai/dsh@0.1.0-rc.6`**、macOS **14+**、Apple Silicon。Intel 暂未验证。
 
-需要 Xcode Command Line Tools（Swift 5.10+）、Node.js 22 与 npm。
+需要 Xcode Command Line Tools（Swift 5.10+）、Node.js 22、npm；远程计算还需要系统自带的 OpenSSH 客户端。
 
 ```bash
 npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
@@ -146,6 +154,7 @@ open "$HOME/Applications/DeepSeek Harness.app"
 | 屏幕录制 | Appshot 与可选的当前窗口 OCR | 不会变成持续远程看屏幕 |
 | 模型提供方 API | 对话，以及你或工作流选择发送的内容 | 选择发送提取内容后，不能再把它视为只留在本机 |
 | 受管文件 | Application Support 下的本地研究工作流 | 不修改原文件；移除草稿卡片不会删除受管副本 |
+| SSH 配置与 Agent | 用系统 OpenSSH 解析别名并完成公钥认证 | HarnessMate 不读取或保存私钥内容与密码；命令和你选择传输的文件会到达所选服务器 |
 
 Harness 只在随机回环端口中运行，并使用非持久 `WKWebView`。这能减少意外冲突，但不是完整的身份验证或沙箱边界。控制敏感 App 前，请阅读[隐私说明](docs/PRIVACY.md)与[安全策略](SECURITY.md)。
 
@@ -160,16 +169,19 @@ Harness 只在随机回环端口中运行，并使用非持久 `WKWebView`。这
 | 只接受经过验证的上游 rc.6 运行时与摘要 | 更广的架构验证 |
 | 主界面仍是 `WKWebView` 中的上游 Web UI，不是完整 SwiftUI 重写 | |
 | 没有通用视频上传、音频转写、自动权限授予、保证插件调用，也不等同于 Codex 视觉电脑控制 | |
+| SSH 远程计算仅支持 Linux、公钥、非交互模式；没有密码、MFA、TTY、跳板机或远程桌面 | 扩大服务器兼容范围，并加入更强的原生确认门 |
 
 ## 🧪 质量：用测试说话
 
-CI 负责编译和确定性检查；仓库里还躺着研究文件桥、Appshot、原生文件拖放、真实 `WKWebView` 拖放生命周期、一次性窗口 Computer Use 的固定夹具测试。完整研究文件测试需要 [`uv`](https://docs.astral.sh/uv/)；真实 OCR、权限、窗口操作，还是得靠真人在登录的 Mac 上验收——自动化没法给自己授权辅助功能，说真的，也不该给。
+CI 负责编译和确定性检查；仓库里还带着研究文件桥、Appshot、原生文件拖放、真实 `WKWebView` 拖放生命周期、一次性窗口 Computer Use、原生 SSH 服务器选择器和隔离假 SSH 服务器测试。完整研究文件测试需要 [`uv`](https://docs.astral.sh/uv/)；真实 OCR、权限、窗口操作和真实服务器仍要由用户明确做本机验收——自动化 SSH 套件不会发起任何网络连接。
 
 ```bash
 swift build --package-path app -c release
 ./scripts/test_artifact_bridge.sh
 ./scripts/test_appshot_qa.sh
 ./scripts/test_capability_catalog.sh
+./scripts/test_remote_host_store.sh
+./scripts/test_ssh_bridge.sh
 ./scripts/test_native_file_drop.sh
 ./scripts/test_webview_file_drop.sh
 ./scripts/test_app_bridge_e2e.sh
@@ -184,6 +196,7 @@ swift build --package-path app -c release
 <a href="docs/DISTRIBUTION.md">📦 分发说明</a> ·
 <a href="integration/ARTIFACT_BRIDGE.md">🧾 研究文件桥接</a> ·
 <a href="app/APP_BRIDGE_TESTING.md">🖱️ Computer Use 测试</a> ·
+<a href="docs/SSH_REMOTE_COMPUTE.md">🖥️ SSH 远程计算</a> ·
 <a href="CONTRIBUTING.md">🤝 参与贡献</a>
 
 </div>

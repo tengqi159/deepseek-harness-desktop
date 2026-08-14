@@ -7,15 +7,14 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.dirname(scriptDirectory);
-const integrationRoot = path.join(root, "integration");
 const packageDirectory = path.join(
-  integrationRoot,
-  "dsh-home-template/profiles/web/node_modules/@tengqi/dsh-capability-catalog"
+  root,
+  "integration/dsh-home-template/profiles/web/node_modules/@tengqi/dsh-capability-catalog"
 );
 const clientPath = path.join(packageDirectory, "lib/client.js");
 const hostPath = path.join(packageDirectory, "lib/index.js");
 const manifestPath = path.join(packageDirectory, "package.json");
-const patchPath = path.join(integrationRoot, "cordis.macos-computer-use.patch.yml");
+const patchPath = path.join(root, "integration/cordis.macos-computer-use.patch.yml");
 
 for (const requiredPath of [clientPath, hostPath, manifestPath, patchPath]) {
   assert.equal(fs.existsSync(requiredPath), true, `missing capability-catalog file: ${requiredPath}`);
@@ -97,6 +96,7 @@ assert.equal(plugin.invocationModeForSkill({ modelInvocable: false }), "manual")
 assert.equal(plugin.invocationModeForPlugin({ entryId: "mcp-artifacts", moduleName: "@deepseek-ai/dsh-mcp-client" }), "after-import");
 assert.equal(plugin.invocationModeForPlugin({ entryId: "native-attachments", moduleName: "@tengqi/dsh-native-attachments" }), "after-import");
 assert.equal(plugin.invocationModeForPlugin({ entryId: "mcp-macos-computer-use", moduleName: "@deepseek-ai/dsh-mcp-client" }), "after-attach");
+assert.equal(plugin.invocationModeForPlugin({ entryId: "mcp-remote-compute", moduleName: "@deepseek-ai/dsh-mcp-client" }), "after-server");
 assert.equal(plugin.invocationModeForPlugin({ entryId: "tool-web", moduleName: "@deepseek-ai/dsh-tool-web" }), "on-demand");
 
 const slash = plugin.appendSlashInvocation("已有研究问题", "pdf");
@@ -119,6 +119,7 @@ const inventory = [
   { entryId: "include:mcp-artifacts", moduleName: "@deepseek-ai/dsh-mcp-client", enabled: true, fiberPhase: "active" },
   { entryId: "include:mcp-artifacts", moduleName: "@deepseek-ai/dsh-mcp-client", enabled: true, fiberPhase: "active" },
   { entryId: "include:mcp-macos-computer-use", moduleName: "@deepseek-ai/dsh-mcp-client", enabled: true, fiberPhase: "loading" },
+  { entryId: "include:mcp-remote-compute", moduleName: "@deepseek-ai/dsh-mcp-client", enabled: true, fiberPhase: "active" },
   { entryId: "include:native-attachments", moduleName: "@tengqi/dsh-native-attachments", enabled: false, fiberPhase: null },
   { entryId: "tool-web", moduleName: "@deepseek-ai/dsh-tool-web", enabled: false, fiberPhase: null },
   { entryId: "host-placeholder", moduleName: "@deepseek-ai/dsh-tool-placeholder", enabled: true, fiberPhase: "active" },
@@ -131,6 +132,7 @@ assert.equal(derived.some((item) => item.id === "skill:pdf" && item.invocation =
 assert.equal(derived.some((item) => item.id === "skill:latex" && item.invocation === "manual" && item.selectable), true);
 assert.equal(derived.some((item) => item.id === "plugin:mcp-artifacts" && item.invocation === "after-import" && !item.selectable), true);
 assert.equal(derived.some((item) => item.id === "plugin:mcp-macos-computer-use" && item.invocation === "after-attach"), true);
+assert.equal(derived.some((item) => item.id === "plugin:mcp-remote-compute" && item.invocation === "after-server" && item.group === "code"), true);
 assert.equal(derived.some((item) => item.id === "plugin:mcp-macos-computer-use" && item.statusLabel === "加载中"), true);
 assert.equal(derived.some((item) => item.id === "plugin:native-attachments" && item.statusLabel === "已停用"), true);
 assert.equal(derived.some((item) => item.id === "plugin:tool-web"), false);
@@ -138,8 +140,8 @@ assert.equal(derived.some((item) => item.id === "plugin:host-placeholder"), fals
 assert.equal(derived.some((item) => item.id === "plugin:core-runtime"), false, "core infrastructure must not flood the capability menu");
 assert.deepEqual(
   derived.filter((item) => item.kind === "plugin").map((item) => item.id).sort(),
-  ["plugin:mcp-artifacts", "plugin:mcp-macos-computer-use", "plugin:native-attachments"],
-  "only the three companion capabilities may be projected from raw plugin inventory"
+  ["plugin:mcp-artifacts", "plugin:mcp-macos-computer-use", "plugin:mcp-remote-compute", "plugin:native-attachments"],
+  "only the four companion capabilities may be projected from raw plugin inventory"
 );
 assert.equal(JSON.stringify(derived).includes(fixtureSecret), false, "credential-looking text must be redacted");
 assert.equal(derived.every((item) => ["research", "code", "computer", "workflow", "system"].includes(item.group)), true);
@@ -155,6 +157,7 @@ assert.equal(JSON.stringify(pdfMenuRow.label).includes("Read and verify PDF file
 assert.equal(JSON.stringify(pdfMenuRow.label).includes("模型可自动选择"), true);
 assert.equal(JSON.stringify(menuEntries.find((entry) => entry.id === "plugin:mcp-artifacts").label).includes("运行中"), true);
 assert.equal(JSON.stringify(menuEntries.find((entry) => entry.id === "plugin:mcp-macos-computer-use").label).includes("加载中"), true);
+assert.equal(JSON.stringify(menuEntries.find((entry) => entry.id === "plugin:mcp-remote-compute").label).includes("选择服务器后"), true);
 assert.equal(JSON.stringify(menuEntries.find((entry) => entry.id === "plugin:native-attachments").label).includes("已停用"), true);
 
 let commandCalls = 0;

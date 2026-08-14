@@ -5,6 +5,7 @@ struct HarnessInstallation {
     let integrationPatch: URL
     let helperBinary: URL
     let artifactHelperBinary: URL
+    let sshHelperBinary: URL
 }
 
 enum HarnessHomeInstaller {
@@ -54,9 +55,12 @@ enum HarnessHomeInstaller {
             .appendingPathComponent("Contents/Helpers/DeepSeekAppBridge", isDirectory: false)
         let artifactHelperBinary = Bundle.main.bundleURL
             .appendingPathComponent("Contents/Helpers/DeepSeekArtifactBridge", isDirectory: false)
+        let sshHelperBinary = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Helpers/DeepSeekSSHBridge", isDirectory: false)
         guard fileManager.isReadableFile(atPath: integrationPatch.path),
               fileManager.isExecutableFile(atPath: helperBinary.path),
-              fileManager.isExecutableFile(atPath: artifactHelperBinary.path) else {
+              fileManager.isExecutableFile(atPath: artifactHelperBinary.path),
+              fileManager.isExecutableFile(atPath: sshHelperBinary.path) else {
             throw InstallerError.missingResources
         }
 
@@ -64,7 +68,8 @@ enum HarnessHomeInstaller {
             home: dshHome,
             integrationPatch: integrationPatch,
             helperBinary: helperBinary,
-            artifactHelperBinary: artifactHelperBinary
+            artifactHelperBinary: artifactHelperBinary,
+            sshHelperBinary: sshHelperBinary
         )
     }
 

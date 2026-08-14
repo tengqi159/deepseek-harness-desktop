@@ -4,7 +4,7 @@ Thank you for helping improve this unofficial macOS companion for DeepSeek Harne
 
 ## Before starting
 
-- Read [SECURITY.md](SECURITY.md) before working on permissions, Computer Use, Appshots, file parsing, helper discovery, or signing.
+- Read [SECURITY.md](SECURITY.md) before working on permissions, Computer Use, Appshots, SSH remote compute, file parsing, helper discovery, or signing.
 - Use only disposable test files and test applications. Never commit API keys, credentials, local Harness state, personal screenshots, or signing certificates.
 - Keep upstream `@deepseek-ai/dsh` unmodified. Integration belongs in this wrapper, its bundled helpers, Skills, or the versioned client/plugin layer.
 - Preserve fail-closed behavior for unknown model capabilities, stale process/window identity, unsupported file types, and unavailable permissions.
@@ -21,6 +21,7 @@ You will need:
 - Node.js 22 for the attachment-client test and the separately installed Harness runtime;
 - `@deepseek-ai/dsh@0.1.0-rc.6` when launching the full app;
 - `uv`, or Python with ReportLab and Pillow, for the artifact generated-fixture test.
+- the macOS system OpenSSH client; SSH regression tests replace it with a local fake and must not contact a real host.
 
 ## Build and test
 
@@ -29,6 +30,9 @@ From the repository root:
 ```sh
 swift build --package-path app -c release
 node scripts/test_native_attachments_plugin.mjs
+scripts/test_capability_catalog.sh
+scripts/test_remote_host_store.sh
+scripts/test_ssh_bridge.sh
 scripts/test_native_file_drop.sh
 scripts/test_artifact_bridge.sh
 ```
@@ -42,6 +46,8 @@ scripts/test_webview_file_drop.sh
 ```
 
 Those suites do not grant permissions. A permission-dependent step may be reported as skipped when the launching process lacks Accessibility or Screen Recording access. A tool’s success message is not enough: verify the expected UI or file state on the intended fixture.
+
+SSH tests must use only the bundled temporary fake-SSH harness and should finish with `real_connections=0`. Never put a real host, user, workspace, private key, agent socket, command output, or cluster log into a fixture, snapshot, issue, or CI secret. Real-server acceptance is manual, opt-in, and should begin in a disposable non-sensitive workspace.
 
 ## Pull request checklist
 

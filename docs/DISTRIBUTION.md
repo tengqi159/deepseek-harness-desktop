@@ -18,6 +18,7 @@ Prerequisites:
 - Apple Silicon for the currently tested configuration;
 - Xcode Command Line Tools with Swift 5.10 or later;
 - Node.js 22;
+- the system OpenSSH client for SSH Remote Compute;
 - the exact compatible upstream runtime:
 
 ```sh
@@ -45,7 +46,7 @@ A downloadable release is not ready until all of the following are complete:
 5. Verify the final bundle with strict code-signing checks before archiving it.
 6. Submit the exact distributable archive to Apple’s notary service, wait for acceptance, and staple the notarization ticket to the app.
 7. Verify Gatekeeper assessment and launch behavior on a clean Mac that has never seen a development build.
-8. Re-run file, Appshot, Computer Use, lifecycle, update, and permission acceptance tests against the exact release artifact.
+8. Re-run file, Appshot, Computer Use, SSH fake-server/host-selector, lifecycle, update, and permission acceptance tests against the exact release artifact. Verify that `DeepSeekSSHBridge` is nested-signed and discovered from the installed app.
 9. Publish a checksum and release notes that state the wrapper version, pinned upstream version, macOS minimum, architecture, permissions, privacy boundary, and known limitations.
 
 Hosted CI in this repository is a source-build and non-TCC regression gate. It is not a notarization pipeline and must not be used as evidence that an app ZIP is trusted by Gatekeeper.
@@ -61,7 +62,7 @@ Do not relax the version check merely to start against an untested release. Upda
 The native wrapper and upstream runtime have independent versions. Release notes should always show both, for example:
 
 ```text
-Companion: 1.5.0-source-preview
+Companion: 1.6.0-source-preview
 Compatible upstream: @deepseek-ai/dsh 0.1.0-rc.6
 ```
 
