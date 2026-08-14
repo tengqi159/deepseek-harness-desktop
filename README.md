@@ -74,6 +74,17 @@ Before anything consequential — sending, publishing, buying, deleting, install
 
 This is semantic/OCR-assisted control, not Codex-style vision. Some custom-drawn interfaces won't cooperate. We'd rather be boring about that than oversell it.
 
+### “Will Harness use this by itself, or do I have to summon it?”
+
+The composer now has a compact, color-coded capability menu instead of another wall of plugin names. It reads the current session's command, Skill, and companion-plugin catalogs every time it opens, then says what each item actually means:
+
+- **Model may auto-select** — the model can choose the Skill when the task matches; it is available, not guaranteed to run.
+- **After import / After attach** — the bridge is running, but a file or one exact Mac app must be supplied first.
+- **Manual** — commands such as plan, goal, export, and permission only run when you choose them.
+- **Running / Loading / Disabled** — live startup state, kept separate from the invocation label.
+
+Selecting a command or Skill only writes its shortcut into the draft. It never presses **Send**. Low-level host placeholders and duplicate disabled entries stay out of this everyday menu; the full technical inventory remains available in Harness Settings.
+
 ## 🧭 An honest note on what the model sees
 
 Plenty of agent tools quietly imply the model saw an image it didn't. We don't. Three rules, no exceptions:
@@ -94,13 +105,13 @@ Provider keys live in **Harness Settings → Models**. Never in this repository,
 | Provider adapters, including supported Kimi routes, plus the Skill / MCP framework | Upstream `@deepseek-ai/dsh` |
 | Native app window, toolbar, app lifecycle, and no required browser tab | This companion |
 | Finder file drop, managed research files, PDF / Office helpers, and removable draft cards | This companion |
-| Appshot, exact-app attachment, bounded Computer Use, capability routing, and plugin health | This companion |
+| Appshot, exact-app attachment, bounded Computer Use, capability routing, plugin health, and the color-coded capability menu | This companion |
 
 HarnessMate hosts and extends the verified upstream client. We don't replace it, and we won't pretend to be it.
 
 ## 🛠️ Quick start from source
 
-Current targets: companion **1.4.1 (build 6)**, upstream **`@deepseek-ai/dsh@0.1.0-rc.6`**, macOS **14+**, Apple Silicon. Intel is not yet validated.
+Current targets: companion **1.5.0 (build 7)**, upstream **`@deepseek-ai/dsh@0.1.0-rc.6`**, macOS **14+**, and Apple Silicon. Intel is not yet validated.
 
 Requirements: Xcode Command Line Tools with Swift 5.10+, Node.js 22, and npm.
 
@@ -158,6 +169,7 @@ CI compiles and runs deterministic checks, and the repository ships fixture-base
 swift build --package-path app -c release
 ./scripts/test_artifact_bridge.sh
 ./scripts/test_appshot_qa.sh
+./scripts/test_capability_catalog.sh
 ./scripts/test_native_file_drop.sh
 ./scripts/test_webview_file_drop.sh
 ./scripts/test_app_bridge_e2e.sh

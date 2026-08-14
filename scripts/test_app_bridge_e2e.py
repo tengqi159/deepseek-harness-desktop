@@ -459,6 +459,58 @@ def wait_for_state(path: Path, predicate: Callable[[dict[str, Any]], bool], time
     raise QAError(f"Timed out waiting for fixture state {path.name}; latest={latest}")
 
 
+def isolation_signature(state: dict[str, Any]) -> dict[str, Any]:
+    """Return only state that an action routed to the wrong fixture could change."""
+    return {
+        "click_count": int(state.get("click_count", 0)),
+        "input_value": str(state.get("input_value", "")),
+        "key_event_count": int(state.get("key_event_count", 0)),
+        "scroll_event_count": int(state.get("scroll_event_count", 0)),
+        "scroll_origin_y": float(state.get("scroll_origin_y", 0.0)),
+        "secondary_action_count": int(state.get("secondary_action_count", 0)),
+        "scheduled_wait_count": int(state.get("scheduled_wait_count", 0)),
+        "slider_action_count": int(state.get("slider_action_count", 0)),
+        "slider_value": float(state.get("slider_value", 0.0)),
+    }
+
+
+def wait_for_quiet_isolation_baseline(
+    paths: dict[str, Path], *, quiet_period: float = 0.5, timeout: float = 4.0
+) -> dict[str, dict[str, Any]]:
+    """Wait out launch-time input/momentum before binding the isolation assertion.
+
+    Each disposable app briefly activates itself while starting. Real user input can
+    therefore reach a fixture before the bridge chooses and activates its exact PID.
+    Isolation is about changes after that binding, so compare against a quiet baseline
+    instead of assuming every launch-time event counter must be zero.
+    """
+    deadline = time.monotonic() + timeout
+    stable_since: float | None = None
+    previous: dict[str, dict[str, Any]] | None = None
+    while time.monotonic() < deadline:
+        current: dict[str, dict[str, Any]] = {}
+        for name, path in paths.items():
+            state = read_json(path)
+            if state is None:
+                break
+            current[name] = isolation_signature(state)
+        if len(current) != len(paths):
+            stable_since = None
+            previous = None
+            time.sleep(0.05)
+            continue
+        now = time.monotonic()
+        if current == previous:
+            stable_since = stable_since or now
+            if now - stable_since >= quiet_period:
+                return current
+        else:
+            previous = current
+            stable_since = now
+        time.sleep(0.05)
+    raise QAError(f"Fixture isolation state did not become quiet before testing; latest={previous}")
+
+
 def write_production_selection(path: Path, app: dict[str, Any]) -> None:
     payload = {
         "bundleIdentifier": app["bundle_identifier"],
@@ -772,6 +824,42 @@ def run(args: argparse.Namespace, temp_root: Path, reporter: Reporter) -> None:
             "Production exact-process selection",
             f"resolved exact selected instance pid={selected_pid} while same-bundle sibling stayed separate",
         )
+
+        activation, activation_error = client.tool("activate_app")
+        ensure(not activation_error and activation.get("action") == "activate_app", f"activate_app failed: {error_text(activation)}")
+        ensure(
+            int(activation.get("target", {}).get("pid", 0)) == selected_pid,
+            "activate_app did not preserve the exact selected process",
+        )
+        reporter.passed_step("App activation", f"exact attached fixture pid={selected_pid}")
+
+        # Every disposable fixture activates itself during launch and places its scroll
+        # view under the current pointer. A real trackpad event can therefore increment a
+        # peer's counter before the bridge has bound and activated the selected PID. Wait
+        # for that launch-time input to settle, then make all isolation assertions relative
+        # to this exact-target baseline.
+        isolation_baseline = wait_for_quiet_isolation_baseline(
+            {"same-bundle peer": peer_state, "cross-bundle decoy": decoy_state}
+        )
+        ensure(
+            isolation_baseline["same-bundle peer"]["input_value"] == peer_initial_value,
+            "Same-bundle peer input changed before the exact-target isolation baseline",
+        )
+        ensure(
+            isolation_baseline["cross-bundle decoy"]["input_value"] == "DECOY-INITIAL",
+            "Cross-bundle decoy input changed before the exact-target isolation baseline",
+        )
+        reporter.passed_step(
+            "Target-isolation baseline",
+            "quiet after exact PID activation; subsequent peer/decoy mutation must remain zero",
+        )
+
+        state_payload, state_error = client.tool("get_app_state", {"max_depth": 12, "max_elements": 220})
+        ensure(not state_error, f"AX refresh after activation failed: {error_text(state_payload)}")
+        ensure(
+            int(state_payload.get("target", {}).get("pid", 0)) == selected_pid,
+            "AX refresh after activation changed the exact selected process",
+        )
         root = state_payload.get("root")
         ensure(isinstance(root, dict), "AX root missing")
         nodes = flatten_tree(root)
@@ -1013,10 +1101,7 @@ def run(args: argparse.Namespace, temp_root: Path, reporter: Reporter) -> None:
         ensure((read_json(selected_state) or {}).get("wait_value") == "WAIT-READY", "Fixture did not reach WAIT-READY")
         reporter.passed_step("wait_for_state", "polled a safe AXValue while continuously reauthorizing the exact focused target")
 
-        activation, activation_error = client.tool("activate_app")
-        ensure(not activation_error and activation.get("action") == "activate_app", f"activate_app failed: {error_text(activation)}")
-        reporter.passed_step("App activation", "attached fixture only")
-
+        selected_scroll_window_number: int | None = None
         if not event_posting:
             reporter.skipped_step("Keyboard, drag, and scroll actions", "event_posting=false; no permission was requested")
         else:
@@ -1142,8 +1227,20 @@ def run(args: argparse.Namespace, temp_root: Path, reporter: Reporter) -> None:
                 lambda value: int(value.get("scroll_event_count", 0)) > scroll_before
                 and abs(float(value.get("scroll_origin_y", 0.0)) - scroll_origin_before) > 0.1,
             )
-            ensure(abs(float(scrolled.get("last_scroll_delta_y", 0.0))) > 0.0, "Fixture saw a zero vertical scroll delta")
-            reporter.passed_step("scroll", "targeted event moved the fixture scroll document")
+            ensure(
+                abs(float(scrolled.get("last_scroll_delta_y", 0.0)) - (-37.0)) <= 0.01,
+                f"Fixture received the wrong vertical scroll delta: {scrolled.get('last_scroll_delta_y')}",
+            )
+            ensure(
+                abs(float(scrolled.get("last_scroll_delta_x", 0.0)) - 5.0) <= 0.01,
+                f"Fixture received the wrong horizontal scroll delta: {scrolled.get('last_scroll_delta_x')}",
+            )
+            selected_scroll_window_number = int(scrolled.get("last_scroll_window_number", 0))
+            ensure(selected_scroll_window_number > 0, "Fixture did not record the target window for the scroll event")
+            reporter.passed_step(
+                "scroll",
+                f"exact delta (-37, 5) moved selected window {selected_scroll_window_number}",
+            )
 
         ocr_payload, ocr_error = client.tool(
             "get_app_state", {"max_depth": 12, "max_elements": 220, "include_ocr": True}
@@ -1159,6 +1256,11 @@ def run(args: argparse.Namespace, temp_root: Path, reporter: Reporter) -> None:
             ensure(OCR_SENTINEL in str(ocr.get("text", "")), "OCR did not read the large primary-window sentinel")
             ensure("SECONDARY QA WINDOW" not in str(ocr.get("text", "")), "OCR selected the smaller secondary window")
             ensure(SYNTHETIC_SECRET_PROBE not in str(ocr.get("text", "")), "Synthetic API-key pattern leaked through OCR")
+            if selected_scroll_window_number is not None:
+                ensure(
+                    int(ocr.get("window", {}).get("window_id", 0)) == selected_scroll_window_number,
+                    "Scroll event window did not match the exact OCR-captured selected window",
+                )
             reporter.passed_step("In-memory OCR", f"{ocr.get('line_count', 0)} lines from the focused attached window")
 
             if event_posting:
@@ -1274,27 +1376,22 @@ def run(args: argparse.Namespace, temp_root: Path, reporter: Reporter) -> None:
 
         final_decoy = read_json(decoy_state) or {}
         final_peer = read_json(peer_state) or {}
+        final_decoy_signature = isolation_signature(final_decoy)
+        final_peer_signature = isolation_signature(final_peer)
         ensure(
-            final_decoy.get("click_count") == 0
-            and final_decoy.get("input_value") == "DECOY-INITIAL"
-            and final_decoy.get("key_event_count") == 0
-            and final_decoy.get("scroll_event_count") == 0
-            and final_decoy.get("secondary_action_count") == 0
-            and final_decoy.get("scheduled_wait_count") == 0
-            and final_decoy.get("slider_action_count") == 0,
-            f"Decoy fixture changed unexpectedly: {final_decoy}",
+            final_decoy_signature == isolation_baseline["cross-bundle decoy"],
+            "Cross-bundle decoy changed after exact-target binding: "
+            f"baseline={isolation_baseline['cross-bundle decoy']} final={final_decoy_signature}",
         )
         ensure(
-            final_peer.get("click_count") == 0
-            and final_peer.get("input_value") == peer_initial_value
-            and final_peer.get("key_event_count") == 0
-            and final_peer.get("scroll_event_count") == 0
-            and final_peer.get("secondary_action_count") == 0
-            and final_peer.get("scheduled_wait_count") == 0
-            and final_peer.get("slider_action_count") == 0,
-            f"Same-bundle peer changed unexpectedly: {final_peer}",
+            final_peer_signature == isolation_baseline["same-bundle peer"],
+            "Same-bundle peer changed after exact-target binding: "
+            f"baseline={isolation_baseline['same-bundle peer']} final={final_peer_signature}",
         )
-        reporter.passed_step("Target isolation", "cross-bundle decoy and same-bundle peer remained unchanged")
+        reporter.passed_step(
+            "Target isolation",
+            "peer/decoy post-baseline action deltas stayed zero, including scroll count and origin",
+        )
 
         stop_fixture(selected_process)
         dead_target_confirmed = False
