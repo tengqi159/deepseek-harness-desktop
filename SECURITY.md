@@ -1,6 +1,6 @@
 # Security policy
 
-DeepSeek Harness for macOS can read user-selected files and, only after the user grants macOS permissions, inspect or control one explicitly attached application. Security and privacy regressions are therefore treated as release-blocking issues.
+HarnessMate can read user-selected files and, only after the user grants macOS permissions, inspect or control one explicitly attached application. Security and privacy regressions are therefore treated as release-blocking issues.
 
 ## Supported versions
 

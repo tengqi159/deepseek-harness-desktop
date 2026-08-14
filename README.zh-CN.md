@@ -1,18 +1,18 @@
 <div align="center">
 
-# DeepSeek Harness for macOS
+# HarnessMate
 
-#### 补上上游没做的原生层
+#### DeepSeek Harness 的 Mac 拍档
 
 **上游 DeepSeek Harness 会规划、会写代码、会调工具；这个桌面伴侣让它真正接手你 Mac 上的活——把研究文件拖进来、安全截取一个窗口、只附加一个 App 做 Computer Use。**
 
 简体中文 · [English](README.md)
 
-<img alt="CI" src="https://github.com/tengqi159/deepseek-harness-macos/actions/workflows/ci.yml/badge.svg">
+<img alt="CI" src="https://github.com/tengqi159/harness-mate/actions/workflows/ci.yml/badge.svg">
 <img alt="源码预览版" src="https://img.shields.io/badge/status-source_preview-f59e0b">
 <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-111827?logo=apple">
 
-<img src="docs/images/hero-files.png" alt="把研究文件拖入 DeepSeek Harness macOS 桌面伴侣" width="920">
+<img src="docs/images/hero-files.png" alt="把研究文件拖入 HarnessMate" width="920">
 
 <sub>基于真实产品界面制作的脱敏演示，不含用户文件、账号或 API key。</sub>
 
@@ -107,8 +107,8 @@ API key 请在 **Harness 设置 → Models** 中配置；它们不会写入本�
 ```bash
 npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
 dsh --version
-git clone https://github.com/tengqi159/deepseek-harness-macos.git
-cd deepseek-harness-macos
+git clone https://github.com/tengqi159/harness-mate.git
+cd harness-mate
 ./scripts/build_and_run.sh package
 ```
 

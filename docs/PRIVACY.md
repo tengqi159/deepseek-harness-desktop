@@ -1,6 +1,6 @@
 # Privacy and data flow
 
-DeepSeek Harness for macOS is designed as a local companion around a separately installed Harness runtime. “Local” does not mean that all conversation content stays on the Mac: prompts, selected extracts, approved attachments, and tool results can be sent by Harness to whichever model provider the user configures.
+HarnessMate is designed as a local companion around a separately installed Harness runtime. “Local” does not mean that all conversation content stays on the Mac: prompts, selected extracts, approved attachments, and tool results can be sent by Harness to whichever model provider the user configures.
 
 This document describes the companion layer. The upstream Harness runtime, model providers, npm registry, linked websites, and macOS have their own behavior and policies.
 

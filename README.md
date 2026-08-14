@@ -1,18 +1,18 @@
 <div align="center">
 
-# DeepSeek Harness for macOS
+# HarnessMate
 
-#### The native layer upstream doesn't ship
+#### The Mac companion for DeepSeek Harness
 
 **Upstream DeepSeek Harness plans, codes, and calls tools. This companion gives it hands on your Mac — drag in your research files, capture one window safely, attach exactly one app for Computer Use.**
 
 [简体中文](README.zh-CN.md) · English
 
-<img alt="CI" src="https://github.com/tengqi159/deepseek-harness-macos/actions/workflows/ci.yml/badge.svg">
+<img alt="CI" src="https://github.com/tengqi159/harness-mate/actions/workflows/ci.yml/badge.svg">
 <img alt="Source Preview" src="https://img.shields.io/badge/status-source_preview-f59e0b">
 <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-111827?logo=apple">
 
-<img src="docs/images/hero-files.png" alt="Dropping research files into DeepSeek Harness for macOS" width="920">
+<img src="docs/images/hero-files.png" alt="Dropping research files into HarnessMate" width="920">
 
 <sub>Sanitized product demo based on the real interface. No user files, accounts, or API keys.</sub>
 
@@ -107,8 +107,8 @@ Requirements: Xcode Command Line Tools with Swift 5.10+, Node.js 22, and npm.
 ```bash
 npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
 dsh --version
-git clone https://github.com/tengqi159/deepseek-harness-macos.git
-cd deepseek-harness-macos
+git clone https://github.com/tengqi159/harness-mate.git
+cd harness-mate
 ./scripts/build_and_run.sh package
 ```
 
