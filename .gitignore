@@ -1,0 +1,62 @@
+# macOS and Finder metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Swift / Xcode build products
+.build/
+app/.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Packaged applications and distribution artifacts
+outputs/
+release/
+dist/
+*.app
+*.dmg
+*.pkg
+*.zip
+
+# Node, Python, and tool caches
+**/node_modules/*
+!integration/dsh-home-template/profiles/web/node_modules/@tengqi/
+!integration/dsh-home-template/profiles/web/node_modules/@tengqi/**
+.pnpm-store/
+.npm/
+.yarn/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Logs, coverage, and temporary QA output
+*.log
+coverage/
+.coverage
+tmp/
+temp/
+qa-output/
+playwright-report/
+test-results/
+
+# Local Harness/Codex state
+.dsh/
+.codex/
+app-bridge-selection.json
+
+# Credentials and signing material
+.env
+.env.*
+!.env.example
+.credentials.yaml
+*.pem
+*.p12
+*.cer
+*.crt
+*.key
+*.keychain
+*.keychain-db
+signing/

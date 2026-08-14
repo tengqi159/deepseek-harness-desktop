@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-08-14",
+  "expiresAt": "2026-09-14",
+  "intersectionRule": "provider capabilities intersect adapter capabilities intersect Harness attachment capabilities",
+  "providers": [
+    {
+      "id": "deepseek-official",
+      "displayName": "DeepSeek 官方",
+      "region": "cn",
+      "baseURL": "https://api.deepseek.com",
+      "adapter": "@deepseek-ai/dsh-llm-deepseek",
+      "protocols": { "chatCompletions": "supported", "responses": "supported" },
+      "input": {
+        "text": "supported",
+        "image": "unsupported",
+        "video": "unsupported",
+        "audio": "unsupported",
+        "fileExtract": "local-tool"
+      },
+      "models": [
+        { "id": "deepseek-v4-pro", "lifecycle": "active", "input": ["text"] }
+      ],
+      "notes": [
+        "The rc.6 official Harness adapter is text-only.",
+        "Images, PDFs and Appshots must use bounded local extraction/OCR before this route."
+      ],
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/github_copilot"
+      ]
+    },
+    {
+      "id": "moonshotai-cn",
+      "displayName": "Kimi / Moonshot 中国区",
+      "region": "cn",
+      "baseURL": "https://api.moonshot.cn/v1",
+      "adapter": "@deepseek-ai/dsh-llm-pi-ai",
+      "protocols": { "chatCompletions": "supported", "responses": "unsupported" },
+      "input": {
+        "text": "supported",
+        "image": "supported",
+        "video": "tool-only",
+        "audio": "unsupported",
+        "fileExtract": "supported"
+      },
+      "models": [
+        {
+          "id": "kimi-k3",
+          "lifecycle": "active",
+          "contextTokens": 1048576,
+          "defaultOutputTokens": 131072,
+          "maxOutputTokens": 1048576,
+          "input": ["text", "image", "video"]
+        },
+        {
+          "id": "kimi-k2.7-code",
+          "lifecycle": "active",
+          "contextTokens": 262144,
+          "defaultOutputTokens": 32768,
+          "maxOutputTokens": null,
+          "input": ["text", "image", "video"]
+        },
+        {
+          "id": "kimi-k2.7-code-highspeed",
+          "lifecycle": "active",
+          "contextTokens": 262144,
+          "defaultOutputTokens": 32768,
+          "maxOutputTokens": null,
+          "input": ["text", "image", "video"]
+        },
+        {
+          "id": "kimi-k2.6",
+          "lifecycle": "active",
+          "contextTokens": 262144,
+          "defaultOutputTokens": 32768,
+          "maxOutputTokens": null,
+          "input": ["text", "image", "video"]
+        }
+      ],
+      "limits": {
+        "requestBytes": 104857600,
+        "fileBytes": 104857600,
+        "videoDurationSeconds": null,
+        "harnessImageBytes": 5242880,
+        "harnessImagesPerMessage": 20,
+        "harnessTotalImageBytes": 104857600,
+        "harnessImagePixels": 40000000
+      },
+      "notes": [
+        "The built-in pi-ai route already supports Kimi text, images, streaming, reasoning and automatic tool calls.",
+        "Current Harness chat attachments do not carry video blocks; video must use a controlled upload/analyze tool.",
+        "PDF file-extract returns text rather than page layout. Use local PDF page rendering for visual fidelity.",
+        "Kimi has no documented native audio or transcription endpoint."
+      ],
+      "sources": [
+        "https://platform.kimi.com/docs/models",
+        "https://platform.kimi.com/docs/guide/kimi-k3-quickstart",
+        "https://platform.kimi.com/docs/guide/use-kimi-vision-model",
+        "https://platform.kimi.com/docs/api/files-upload",
+        "https://platform.kimi.com/docs/guide/use-kimi-api-for-file-based-qa",
+        "https://platform.kimi.com/docs/openapi.json"
+      ]
+    },
+    {
+      "id": "moonshotai",
+      "displayName": "Kimi / Moonshot 国际区",
+      "region": "global",
+      "baseURL": "https://api.moonshot.ai/v1",
+      "adapter": "@deepseek-ai/dsh-llm-pi-ai",
+      "inherits": "moonshotai-cn",
+      "notes": [
+        "Use only with an international account and key; China and global regions are not interchangeable."
+      ],
+      "sources": [
+        "https://platform.kimi.ai/docs/overview"
+      ]
+    }
+  ]
+}

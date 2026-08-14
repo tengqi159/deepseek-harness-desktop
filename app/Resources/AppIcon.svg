@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="128" y1="96" x2="896" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B8CFF"/>
+      <stop offset="0.52" stop-color="#3B63F2"/>
+      <stop offset="1" stop-color="#6847E8"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="330" y1="292" x2="722" y2="748" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#DCE7FF" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#14245E" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#background)"/>
+  <circle cx="174" cy="216" r="112" fill="#FFFFFF" opacity="0.07"/>
+  <circle cx="868" cy="824" r="168" fill="#FFFFFF" opacity="0.06"/>
+
+  <!-- Original companion mark: a local command surface joined to three tools. -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" opacity="0.88">
+    <path d="M330 394 L238 322"/>
+    <path d="M330 630 L238 702"/>
+    <path d="M694 512 L808 512"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="210" cy="300" r="62"/>
+    <circle cx="210" cy="724" r="62"/>
+    <circle cx="838" cy="512" r="62"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="300" y="256" width="424" height="512" rx="118" fill="url(#panel)"/>
+    <rect x="358" y="336" width="308" height="352" rx="70" fill="#2647B8" opacity="0.96"/>
+    <path d="M426 446 L496 512 L426 578" fill="none" stroke="#FFFFFF" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M530 584 H610" fill="none" stroke="#9EC5FF" stroke-width="36" stroke-linecap="round"/>
+  </g>
+</svg>

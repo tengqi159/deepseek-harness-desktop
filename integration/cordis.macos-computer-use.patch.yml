@@ -1,0 +1,40 @@
+- insert:
+    - id: mcp-macos-computer-use
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: macos
+        transport: stdio
+        command: !!js process.env.DSH_APP_BRIDGE_BIN
+        args: []
+        env:
+          DSH_APP_BRIDGE_PARENT_PID: !!js process.env.DSH_APP_BRIDGE_PARENT_PID
+        toolCallTimeoutMs: 60000
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 10000
+          maxAttempts: 5
+
+- insert:
+    - id: mcp-artifacts
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: artifacts
+        transport: stdio
+        command: !!js process.env.DSH_ARTIFACT_BRIDGE_BIN
+        args: []
+        toolCallTimeoutMs: 60000
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 10000
+          maxAttempts: 5
+
+# Additive browser-only companion for native managed-file drops. The package
+# lives in the managed Web profile's node_modules and declares the official
+# rc.6 dsh.client entry; no upstream Harness bundle is patched.
+- insert:
+    - id: native-attachments
+      name: '@tengqi/dsh-native-attachments'

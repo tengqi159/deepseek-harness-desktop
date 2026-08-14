@@ -1,0 +1,56 @@
+name: Source CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and non-TCC regression tests
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up uv for generated PDF and Office fixtures
+        uses: astral-sh/setup-uv@v6
+
+      - name: Validate public manifests and shell scripts
+        shell: zsh
+        run: |
+          python3 -m json.tool integration/model-capabilities.json >/dev/null
+          node -e 'JSON.parse(require("node:fs").readFileSync("integration/dsh-home-template/profiles/web/node_modules/@tengqi/dsh-native-attachments/package.json", "utf8"))'
+          for script in scripts/*.sh; do bash -n "$script"; done
+
+      - name: Build all Swift products (release)
+        run: swift build --package-path app -c release
+
+      - name: Test native attachment client boundary
+        run: node scripts/test_native_attachments_plugin.mjs
+
+      - name: Test managed native file drops
+        run: scripts/test_native_file_drop.sh
+
+      - name: Test artifact bridge with generated fixtures
+        run: scripts/test_artifact_bridge.sh
+
+      - name: Explain local-only suites
+        run: |
+          echo "Computer Use, Appshot hot-key, and live WKWebView suites are intentionally local-only."
+          echo "They require a logged-in WindowServer session and/or macOS TCC acceptance on the responsible process."
