@@ -25,6 +25,8 @@ final class HarnessService: ObservableObject {
     @Published private(set) var computerUsePluginHealth: PluginHealthState = .checking
     @Published private(set) var artifactsPluginHealth: PluginHealthState = .checking
     @Published private(set) var nativeAttachmentsPluginHealth: PluginHealthState = .checking
+    @Published private(set) var capabilityCatalogPluginHealth: PluginHealthState = .checking
+    @Published private(set) var standardPresetPluginHealth: PluginHealthState = .checking
 
     private var process: Process?
     private var outputPipe: Pipe?
@@ -48,6 +50,8 @@ final class HarnessService: ObservableObject {
         computerUsePluginHealth = .checking
         artifactsPluginHealth = .checking
         nativeAttachmentsPluginHealth = .checking
+        capabilityCatalogPluginHealth = .checking
+        standardPresetPluginHealth = .checking
         isStopping = false
 
         let runtime: HarnessRuntime
@@ -112,6 +116,8 @@ final class HarnessService: ObservableObject {
         computerUsePluginHealth = .checking
         artifactsPluginHealth = .checking
         nativeAttachmentsPluginHealth = .checking
+        capabilityCatalogPluginHealth = .checking
+        standardPresetPluginHealth = .checking
         outputPipe?.fileHandleForReading.readabilityHandler = nil
 
         if ownsProcess, let process, process.isRunning {
@@ -133,6 +139,8 @@ final class HarnessService: ObservableObject {
             computerUsePluginHealth = .error("本地 Harness 尚未就绪")
             artifactsPluginHealth = .error("本地 Harness 尚未就绪")
             nativeAttachmentsPluginHealth = .error("本地 Harness 尚未就绪")
+            capabilityCatalogPluginHealth = .error("本地 Harness 尚未就绪")
+            standardPresetPluginHealth = .error("本地 Harness 尚未就绪")
             return
         }
 
@@ -140,6 +148,8 @@ final class HarnessService: ObservableObject {
         computerUsePluginHealth = .checking
         artifactsPluginHealth = .checking
         nativeAttachmentsPluginHealth = .checking
+        capabilityCatalogPluginHealth = .checking
+        standardPresetPluginHealth = .checking
 
         pluginHealthTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -162,6 +172,27 @@ final class HarnessService: ObservableObject {
                     entryID: "include:native-attachments",
                     entries: entries
                 )
+                self.capabilityCatalogPluginHealth = self.pluginHealth(
+                    entryID: "include:capability-catalog",
+                    entries: entries
+                )
+                self.standardPresetPluginHealth = self.pluginHealth(
+                    entryIDs: [
+                        "include:agent-presets:tool-bash",
+                        "include:agent-presets:tool-fs",
+                        "include:agent-presets:tool-fs-search",
+                        "include:agent-presets:tool-jobs",
+                        "include:agent-presets:skill-filesystem",
+                        "include:agent-presets:tool-skill",
+                        "include:agent-presets:tool-goal",
+                        "include:agent-presets:tool-todo",
+                        "include:agent-presets:tool-web",
+                        "include:agent-presets:plan-mode",
+                        "include:agent-presets:tool-subagent",
+                        "include:agent-presets:tool-workflow"
+                    ],
+                    entries: entries
+                )
             } catch is CancellationError {
                 return
             } catch {
@@ -171,6 +202,8 @@ final class HarnessService: ObservableObject {
                 self.computerUsePluginHealth = .error(detail)
                 self.artifactsPluginHealth = .error(detail)
                 self.nativeAttachmentsPluginHealth = .error(detail)
+                self.capabilityCatalogPluginHealth = .error(detail)
+                self.standardPresetPluginHealth = .error(detail)
             }
         }
     }
@@ -401,12 +434,25 @@ final class HarnessService: ObservableObject {
         return .active
     }
 
+    private func pluginHealth(
+        entryIDs: [String],
+        entries: [PluginInventoryEntry]
+    ) -> PluginHealthState {
+        for entryID in entryIDs {
+            let state = pluginHealth(entryID: entryID, entries: entries)
+            guard state == .active else { return state }
+        }
+        return .active
+    }
+
     private func markPluginHealthUnavailable() {
         pluginHealthTask?.cancel()
         pluginHealthTask = nil
         computerUsePluginHealth = .error("本地 Harness 未就绪")
         artifactsPluginHealth = .error("本地 Harness 未就绪")
         nativeAttachmentsPluginHealth = .error("本地 Harness 未就绪")
+        capabilityCatalogPluginHealth = .error("本地 Harness 未就绪")
+        standardPresetPluginHealth = .error("本地 Harness 未就绪")
     }
 
     private struct PluginInventoryEnvelope: Decodable {

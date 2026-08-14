@@ -41,6 +41,7 @@ jobs:
         run: |
           python3 -m json.tool integration/model-capabilities.json >/dev/null
           node -e 'JSON.parse(require("node:fs").readFileSync("integration/dsh-home-template/profiles/web/node_modules/@tengqi/dsh-native-attachments/package.json", "utf8"))'
+          node -e 'JSON.parse(require("node:fs").readFileSync("integration/dsh-home-template/profiles/web/node_modules/@tengqi/dsh-capability-catalog/package.json", "utf8"))'
           for script in scripts/*.sh; do bash -n "$script"; done
 
       - name: Build all Swift products (release)
@@ -48,6 +49,9 @@ jobs:
 
       - name: Test native attachment client boundary
         run: node scripts/test_native_attachments_plugin.mjs
+
+      - name: Test capability catalog semantics
+        run: scripts/test_capability_catalog.sh
 
       - name: Test managed native file drops
         run: scripts/test_native_file_drop.sh

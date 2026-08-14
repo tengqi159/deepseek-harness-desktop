@@ -135,18 +135,19 @@ struct ContentView: View {
                         )
                     }
 
+                    Button {
+                        showsPluginHealthCenter = true
+                    } label: {
+                        Label("能力", systemImage: "sparkles.rectangle.stack.fill")
+                    }
+                    .help("查看哪些能力会自动调用、哪些需要先准备或手动启动")
+
                     Menu {
                         Button {
                             modelCapabilityStore.reload()
                             showsModelCapabilityCenter = true
                         } label: {
                             Label("模型能力中心", systemImage: "switch.2")
-                        }
-
-                        Button {
-                            showsPluginHealthCenter = true
-                        } label: {
-                            Label("插件健康中心", systemImage: "puzzlepiece.extension")
                         }
 
                         Divider()
@@ -163,7 +164,7 @@ struct ContentView: View {
                             Label("在浏览器中打开", systemImage: "safari")
                         }
                     } label: {
-                        Label("能力与设置", systemImage: "ellipsis.circle")
+                        Label("更多", systemImage: "ellipsis.circle")
                     }
                 }
             }

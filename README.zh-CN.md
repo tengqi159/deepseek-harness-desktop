@@ -74,6 +74,17 @@ Appshot 是一次性、可检查的快照，不是持续共享屏幕。
 
 这是基于语义控件和 OCR 的辅助操作，不是 Codex 式的端到端视觉控制；有些自绘界面不配合。这种事我们宁可把话说无聊，也不想吹过头。
 
+### “它到底会自己调用，还是必须先把插件召唤出来？”
+
+输入框现在有一个彩色分组的“能力与插件”菜单，不再把几十个底层插件名堆成一堵文字墙。每次打开，它都会读取当前会话真实的命令、Skills 和伴生插件清单，并直接告诉你每项能力的含义：
+
+- **模型可自动选择**：任务匹配时模型可以选择这个 Skill；表示可以使用，不代表这一轮必定调用。
+- **导入文件后 / 附加应用后**：桥接已经运行，但你必须先提供文件，或先附加一个确切的 Mac App。
+- **手动触发**：plan、goal、export、permission 等命令只会在你选择后执行。
+- **运行中 / 加载中 / 已停用**：这是实时启动状态，与“能否自动调用”分开显示。
+
+选择命令或 Skill 只会把快捷入口写进草稿，绝不会替你按下**发送**。宿主层占位项和重复的停用条目不会再污染日常菜单；完整技术清单仍可在 Harness 设置中查看。
+
 ## 🧭 说句实话：模型看到什么，就是什么
 
 不少 Agent 工具会悄悄暗示“模型看过了”，其实没有。我们不做这种事。三条规矩，没有例外：
@@ -94,13 +105,13 @@ API key 在 **Harness 设置 → Models** 里配。不进仓库，也不进能�
 | 提供方适配（包括受支持的 Kimi 路由）以及 Skill / MCP 框架 | 上游 `@deepseek-ai/dsh` |
 | 原生 App 窗口、工具栏、生命周期，以及无需单独浏览器标签 | HarnessMate |
 | Finder 文件拖放、受管研究文件、PDF / Office 助手与可移除草稿卡片 | HarnessMate |
-| Appshot、精确 App 附加、受限 Computer Use、能力路由与插件健康 | HarnessMate |
+| Appshot、精确 App 附加、受限 Computer Use、能力路由、插件健康与彩色能力菜单 | HarnessMate |
 
 HarnessMate 承载并扩展经过验证的上游客户端。不替代它，也不冒充它。
 
 ## 🛠️ 从源码快速开始
 
-当前目标：桌面伴侣 **1.4.1（build 6）**、上游 **`@deepseek-ai/dsh@0.1.0-rc.6`**、macOS **14+**、Apple Silicon。Intel 暂未验证。
+当前目标：桌面伴侣 **1.5.0（build 7）**、上游 **`@deepseek-ai/dsh@0.1.0-rc.6`**、macOS **14+**、Apple Silicon。Intel 暂未验证。
 
 需要 Xcode Command Line Tools（Swift 5.10+）、Node.js 22 与 npm。
 
@@ -158,6 +169,7 @@ CI 负责编译和确定性检查；仓库里还躺着研究文件桥、Appshot�
 swift build --package-path app -c release
 ./scripts/test_artifact_bridge.sh
 ./scripts/test_appshot_qa.sh
+./scripts/test_capability_catalog.sh
 ./scripts/test_native_file_drop.sh
 ./scripts/test_webview_file_drop.sh
 ./scripts/test_app_bridge_e2e.sh
