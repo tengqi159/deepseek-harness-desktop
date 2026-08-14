@@ -1,10 +1,10 @@
-# DeepSeek Harness that feels at home on your Mac
+# DeepSeek Harness for macOS — the native layer upstream doesn't ship
 
 <p align="center">
   <a href="README.zh-CN.md">简体中文</a> · English
 </p>
 
-<p align="center"><strong>Bring the work already on your Mac—papers, code, screenshots, and one chosen app—into the Harness conversation you already use.</strong></p>
+<p align="center"><strong>Upstream DeepSeek Harness plans, codes, and calls tools. This companion gives it hands on your Mac — drag in your research files, capture one window safely, and attach exactly one app for Computer Use.</strong></p>
 
 <p align="center">
   <img src="docs/images/hero-files.png" alt="Dropping research files into DeepSeek Harness for macOS" width="920">
@@ -18,10 +18,21 @@
   <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-111827?logo=apple">
 </p>
 
-Upstream Harness can already plan, code, and use tools. On a Mac, the friction begins where the web UI stops: the paper is in Finder, the result plot is in Preview, and the interface you need help with is in another app. This companion was built for that gap. It keeps upstream Harness intact and adds the native workflows around it.
+## Why this project exists
+
+Upstream Harness is already a strong agent runtime: planning, coding, tools, subagents, workflows. But on a Mac it stops at the browser tab — while your actual work lives in Finder, Preview, and other apps. The paper is in Finder, the result plot is in Preview, and the interface you need help with is in another app.
+
+This companion is the native layer that closes that gap. It does not fork or rewrite upstream — it hosts the verified runtime and adds what a Mac-native agent needs:
+
+- **Research files by drag-and-drop** — PDFs, Office, Markdown, code, data, images, and mixed batches become managed, removable cards in the conversation. Originals stay untouched.
+- **A local artifact workbench that tells the truth** — bounded text extraction, page-referenced PDF search, selected-page rendering, and opt-in local OCR. What the model actually saw is never oversold.
+- **Appshot** (`⌘⇧⌥2`) — one-shot capture of the exact frontmost window, secrets masked locally in text and pixels, preview before anything is saved. A reviewable snapshot, not screen sharing.
+- **Bounded macOS Computer Use** — attach one exact running app; Accessibility semantics plus optional in-memory OCR drive clicks, typing, scrolling, and waits, locked to the process lifetime and a fresh window snapshot.
+- **Capability routing that fails closed** — images only go through native routes when the exact provider and model verifiably support them; unknown, expired, or text-only routes fall back to managed references instead of pretending.
+- **A verified upstream** — the companion accepts only the pinned, digest-checked `@deepseek-ai/dsh` runtime; unknown builds are refused.
 
 > [!NOTE]
-> **Unofficial source preview.** This community project is not affiliated with or endorsed by DeepSeek. There is no Apple-notarized public download yet; build it locally and review the permissions you enable. The separately installed upstream package still provides the Harness conversation experience.
+> **Unofficial source preview.** This is an independent community project, not affiliated with or endorsed by DeepSeek. We publish source, not an Apple-notarized binary — [Distribution](docs/DISTRIBUTION.md) spells out exactly what blocks a public download and what we verify before shipping one. Build locally and review the permissions you enable.
 
 ## What changes in everyday work
 
@@ -29,7 +40,7 @@ Upstream Harness can already plan, code, and use tools. On a Mac, the friction b
 
 Drag PDFs, Markdown, source code, Office files, images, or a mixed batch from Finder. They become removable draft cards tied to that conversation, while the originals stay untouched.
 
-PDFs and Office files are managed locally. A tool can extract bounded text, search a PDF with page references, or render selected pages when the task needs it. That is different from claiming the selected model natively understood the raw document.
+PDFs and Office files are managed locally. A tool can extract bounded text, search a PDF with page references, or render selected pages when the task needs it. That is different from claiming the selected model natively understood the raw document — and we say so out loud.
 
 A pure image batch keeps the upstream image route only when the exact provider and model are verified as image-capable. Unknown or text-only routes fall back to managed references instead of pretending the model saw pixels.
 
@@ -37,7 +48,7 @@ Detailed limits and file-safety rules: [Artifact Bridge](integration/ARTIFACT_BR
 
 ### “Show the agent this window, but not my whole desktop or a password beside it.”
 
-Appshot (`⌘⇧⌥2`) captures the exact frontmost window once, masks likely secrets locally, and gives you a preview. Nothing is saved until you confirm, and sending the result to a model remains an explicit action.
+Appshot (`⌘⇧⌥2`) captures the exact frontmost window once, masks likely secrets locally in both text and pixels, and gives you a preview. Nothing is saved until you confirm, and sending the result to a model remains an explicit action.
 
 Appshot is a reviewable snapshot—not continuous screen sharing.
 
@@ -59,6 +70,8 @@ This is useful semantic/OCR-assisted control. It is **not Codex-style end-to-end
 
 ## Models and tools that tell the truth
 
+The routing pipeline states what it can and cannot see, and fails closed when it is unsure:
+
 - The verified DeepSeek rc.6 route is treated as text-only; local extraction or OCR does not become “native vision.”
 - An upstream Kimi route may keep native image blocks only when the selected model explicitly declares image input.
 - Unknown, loading, mismatched, or expired capability records fail closed to managed files.
@@ -67,7 +80,7 @@ This is useful semantic/OCR-assisted control. It is **not Codex-style end-to-end
 
 Provider keys are configured in **Harness Settings → Models**. They are not stored in this repository or in the model capability registry.
 
-## Upstream Harness and this companion
+## What this companion contributes
 
 | Experience | Where it comes from |
 | --- | --- |
@@ -119,13 +132,17 @@ On first launch, configure a provider in **Settings → Models**. Keep only one 
 
 Harness is served on a random loopback port in a non-persistent `WKWebView`. That reduces accidental collisions; it is not a complete authentication or sandbox boundary. Read [Privacy](docs/PRIVACY.md) and [Security](SECURITY.md) before enabling control for sensitive apps.
 
-## Current limits
+## Status and roadmap
 
-- Source preview only: no notarized `.dmg`, `.zip`, or generally downloadable app release.
+Being a source preview is a deliberate choice, not an accident: we will not publish a public binary until it earns one.
+
+- Source preview today: no notarized `.dmg`, `.zip`, or generally downloadable app release.
 - Apple Silicon on macOS 14+ is tested; Intel support is not claimed.
 - Only the verified upstream rc.6 runtime and digest are accepted.
 - The main interface remains upstream web UI inside `WKWebView`, not a full SwiftUI rewrite.
 - No general video upload, audio transcription, automatic permission granting, guaranteed tool invocation, or Codex-equivalent visual control.
+
+Next on the roadmap: Developer ID signing and Apple notarization, clean-Mac Gatekeeper validation, and broader architecture qualification. See [Distribution](docs/DISTRIBUTION.md).
 
 ## Build confidence
 
