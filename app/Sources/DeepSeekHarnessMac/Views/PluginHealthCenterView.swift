@@ -104,6 +104,7 @@ struct PluginHealthCenterView: View {
         let artifactsStatus = liveStatus(harness.artifactsPluginHealth)
         let nativeAttachmentsStatus = liveStatus(harness.nativeAttachmentsPluginHealth)
         let capabilityCatalogStatus = liveStatus(harness.capabilityCatalogPluginHealth)
+        let remoteComputeStatus = liveStatus(harness.remoteComputePluginHealth)
         let standardPresetStatus = liveStatus(harness.standardPresetPluginHealth)
 
         return [
@@ -186,6 +187,19 @@ struct PluginHealthCenterView: View {
                             harness.computerUsePluginHealth,
                             active: "先在窗口顶部附加一个明确应用并完成系统授权。之后模型可在任务需要时选择相应工具。",
                             missing: "当前插件清单中没有找到 macOS 电脑控制桥。"
+                        )
+                    ),
+                    CapabilityItem(
+                        title: "SSH 远程算力",
+                        technicalNames: "mcp-remote-compute · DeepSeekSSHBridge",
+                        symbol: "server.rack",
+                        tint: .indigo,
+                        status: remoteComputeStatus,
+                        invocation: .afterServer,
+                        detail: liveDetail(
+                            harness.remoteComputePluginHealth,
+                            active: "先在窗口顶部选择一个 SSH 配置和远程工作目录。之后模型可自动检查 GPU、任务状态和日志；运行、停止或传输前仍须得到你的明确同意。",
+                            missing: "当前插件清单中没有找到 SSH 远程算力桥。"
                         )
                     ),
                     CapabilityItem(
@@ -326,6 +340,7 @@ struct PluginHealthCenterView: View {
             || harness.artifactsPluginHealth == .checking
             || harness.nativeAttachmentsPluginHealth == .checking
             || harness.capabilityCatalogPluginHealth == .checking
+            || harness.remoteComputePluginHealth == .checking
             || harness.standardPresetPluginHealth == .checking
     }
 
@@ -382,6 +397,7 @@ private struct CapabilityItem: Identifiable {
         case onDemand
         case afterImport
         case afterAttach
+        case afterServer
         case systemRouting
         case manualOnly
 
@@ -391,6 +407,7 @@ private struct CapabilityItem: Identifiable {
             case .onDemand: return "模型可按需加载"
             case .afterImport: return "导入后可自动选择"
             case .afterAttach: return "附加后可自动选择"
+            case .afterServer: return "选服务器后可自动选择"
             case .systemRouting: return "拖入后自动处理"
             case .manualOnly: return "仅手动"
             }
@@ -399,7 +416,7 @@ private struct CapabilityItem: Identifiable {
         var color: Color {
             switch self {
             case .modelAutomatic, .onDemand: return .green
-            case .afterImport, .afterAttach, .systemRouting: return .blue
+            case .afterImport, .afterAttach, .afterServer, .systemRouting: return .blue
             case .manualOnly: return .secondary
             }
         }

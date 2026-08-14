@@ -53,6 +53,12 @@ jobs:
       - name: Test capability catalog semantics
         run: scripts/test_capability_catalog.sh
 
+      - name: Test native SSH host selection without a network connection
+        run: scripts/test_remote_host_store.sh
+
+      - name: Test SSH bridge against the isolated fake server
+        run: scripts/test_ssh_bridge.sh
+
       - name: Test managed native file drops
         run: scripts/test_native_file_drop.sh
 
@@ -63,3 +69,4 @@ jobs:
         run: |
           echo "Computer Use, Appshot hot-key, and live WKWebView suites are intentionally local-only."
           echo "They require a logged-in WindowServer session and/or macOS TCC acceptance on the responsible process."
+          echo "The SSH suites above use a local fake executable and make zero real SSH connections."

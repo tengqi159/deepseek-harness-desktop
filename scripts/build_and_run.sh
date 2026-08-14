@@ -19,6 +19,7 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 HELPER_BINARY="$APP_HELPERS/DeepSeekAppBridge"
 ARTIFACT_HELPER_BINARY="$APP_HELPERS/DeepSeekArtifactBridge"
+SSH_HELPER_BINARY="$APP_HELPERS/DeepSeekSSHBridge"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 OUTPUT_APP="$ROOT_DIR/outputs/$APP_NAME.app"
 OUTPUT_ZIP="$ROOT_DIR/outputs/$APP_NAME.zip"
@@ -163,14 +164,17 @@ BUILD_DIR="$(swift build --package-path "$PROJECT_DIR" -c release --show-bin-pat
 BUILD_BINARY="$BUILD_DIR/$PRODUCT_NAME"
 BUILD_HELPER="$BUILD_DIR/DeepSeekAppBridge"
 BUILD_ARTIFACT_HELPER="$BUILD_DIR/DeepSeekArtifactBridge"
+BUILD_SSH_HELPER="$BUILD_DIR/DeepSeekSSHBridge"
 
 mkdir -p "$APP_MACOS" "$APP_HELPERS" "$APP_RESOURCES" "$ICONSET_DIR"
 cp -f "$BUILD_BINARY" "$APP_BINARY"
 cp -f "$BUILD_HELPER" "$HELPER_BINARY"
 cp -f "$BUILD_ARTIFACT_HELPER" "$ARTIFACT_HELPER_BINARY"
+cp -f "$BUILD_SSH_HELPER" "$SSH_HELPER_BINARY"
 chmod +x "$APP_BINARY"
 chmod +x "$HELPER_BINARY"
 chmod +x "$ARTIFACT_HELPER_BINARY"
+chmod +x "$SSH_HELPER_BINARY"
 
 if [[ ! -d "$INTEGRATION_SOURCE" ]]; then
   echo "Missing Harness integration resources: $INTEGRATION_SOURCE" >&2
@@ -188,8 +192,8 @@ if [[ ! -f "$ICON_SOURCE" ]]; then
   exit 1
 fi
 
-# Render the original companion mark into every representation expected by a
-# standard macOS .icns file. Keeping the SVG in the project makes packaging
+# Render the original companion mark into every representation expected by
+# a standard macOS .icns file. Keeping the SVG in the project makes packaging
 # independent of the local Harness server and its installed version.
 /usr/bin/sips -s format png "$ICON_SOURCE" --out "$ICON_MASTER" >/dev/null
 while read -r filename pixels; do
@@ -226,9 +230,9 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.5.0</string>
+  <string>1.6.0</string>
   <key>CFBundleVersion</key>
-  <string>7</string>
+  <string>8</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>NSPrincipalClass</key>

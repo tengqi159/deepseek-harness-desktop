@@ -12,6 +12,29 @@ This project is an unofficial companion and versions its native wrapper independ
 - Clean-machine installation and Gatekeeper acceptance testing.
 - Broader architecture qualification beyond the currently tested Apple Silicon build.
 
+## [1.6.0-source-preview] - 2026-08-15
+
+### Added
+
+- Native **Remote Server** picker for concrete top-level `~/.ssh/config` aliases and one absolute Linux workspace, stored as an owner-only selection that expires within 24 hours.
+- `DeepSeekSSHBridge` with 11 MCP tools for connection status, server inspection, bounded foreground commands, persistent background jobs, exact job status/log/cancellation, and managed file transfer.
+- Remote-compute Skill and capability-menu entry that distinguish fixed read-only tools the model may select from arbitrary commands/transfers that always require an exact immediate confirmation.
+- Dedicated [SSH Remote Compute](docs/SSH_REMOTE_COMPUTE.md) documentation covering authentication, data flow, Linux requirements, automatic invocation, confirmation limits, and unsupported SSH modes.
+
+### Security and privacy
+
+- Every action reloads the expiring selection, re-resolves SSH configuration, and pins hostname, user, and port before connecting.
+- Remote job cancellation verifies PID, process group, and Linux process start time; transfer streams enforce workspace, symbolic-link, changing-input, and 512 MiB boundaries before publishing results.
+- Passwords, MFA prompts, interactive TTY, forwarding, `ProxyJump`, `ProxyCommand`, and automatic host-key acceptance remain out of scope. Private-key contents are neither read nor stored by the companion.
+- Remote confirmations are explicitly documented as model-workflow controls rather than a native security token; the upstream Full-access shell remains a separate, broader capability.
+
+### Validation
+
+- A clean Release build completed for all five Swift products.
+- The isolated fake-SSH suite passed 29 checks across all 11 tools with `real_connections=0`; native host-selection QA passed without a network connection.
+- Existing capability, file-drop, Artifact Bridge 17/17, Appshot 26/26, and disposable Computer Use 37/37 suites remained green.
+- Installed local app 1.6.0 (build 8) passed deep strict code-sign verification and reported `mcp-remote-compute` plus the capability catalog active. No real server was selected or contacted during release validation.
+
 ## [1.5.0-source-preview] - 2026-08-14
 
 ### Added
@@ -57,6 +80,7 @@ This project is an unofficial companion and versions its native wrapper independ
 - The current local `.app` is Apple Silicon (`arm64`), requires macOS 14 or later, and depends on a separately installed pinned `dsh` runtime.
 - No app ZIP is published with this preview: current development builds are not signed with an Apple Developer ID and are not notarized by Apple.
 
-[Unreleased]: https://github.com/tengqi159/harness-mate/compare/v1.5.0-source-preview...HEAD
+[Unreleased]: https://github.com/tengqi159/harness-mate/compare/v1.6.0-source-preview...HEAD
+[1.6.0-source-preview]: https://github.com/tengqi159/harness-mate/releases/tag/v1.6.0-source-preview
 [1.5.0-source-preview]: https://github.com/tengqi159/harness-mate/releases/tag/v1.5.0-source-preview
 [1.4.1-source-preview]: https://github.com/tengqi159/harness-mate/releases/tag/v1.4.1-source-preview

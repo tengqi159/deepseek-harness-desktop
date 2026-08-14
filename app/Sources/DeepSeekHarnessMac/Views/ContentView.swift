@@ -5,11 +5,13 @@ struct ContentView: View {
     @ObservedObject var artifactStore: ArtifactStore
     @ObservedObject var appshotStore: AppshotStore
     @ObservedObject var modelCapabilityStore: ModelCapabilityStore
+    @ObservedObject var remoteHostStore: RemoteHostStore
     @StateObject private var attachmentStore = AppAttachmentStore()
     @State private var showsComputerUseSettings = false
     @State private var showsArtifactWorkbench = false
     @State private var showsModelCapabilityCenter = false
     @State private var showsPluginHealthCenter = false
+    @State private var showsRemoteServers = false
     @State private var isNativeFileDragActive = false
 
     var body: some View {
@@ -63,6 +65,39 @@ struct ContentView: View {
         .frame(minWidth: 760, minHeight: 520)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        showsRemoteServers = true
+                    } label: {
+                        Label("管理远程服务器…", systemImage: "server.rack")
+                    }
+
+                    if let selection = remoteHostStore.selection {
+                        Divider()
+
+                        Button {
+                            remoteHostStore.testSelectedConnection()
+                            showsRemoteServers = true
+                        } label: {
+                            Label("测试 \(selection.alias)", systemImage: "bolt.horizontal.circle")
+                        }
+                        .disabled(remoteHostStore.isTesting)
+
+                        Button(role: .destructive) {
+                            remoteHostStore.detach()
+                        } label: {
+                            Label("断开 \(selection.alias)", systemImage: "xmark.circle")
+                        }
+                        .disabled(remoteHostStore.isTesting)
+                    }
+                } label: {
+                    Label(
+                        remoteHostStore.selectedAlias.map { "SSH · \($0)" } ?? "远程服务器",
+                        systemImage: "server.rack"
+                    )
+                }
+                .help("选择 SSH 服务器与远程工作区")
+
                 if harness.isReady {
                     Button {
                         artifactStore.importFiles()
@@ -180,6 +215,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showsPluginHealthCenter) {
             PluginHealthCenterView(harness: harness)
+        }
+        .sheet(isPresented: $showsRemoteServers) {
+            RemoteServersView(store: remoteHostStore)
         }
         .sheet(
             isPresented: Binding(
