@@ -4,7 +4,7 @@
   <a href="README.zh-CN.md">简体中文</a> · English
 </p>
 
-<p align="center"><strong>DeepSeek Harness 的桌面客户端，跑在 Apple Silicon（M 系列）Mac 上。</strong></p>
+<p align="center"><strong>The desktop client for DeepSeek Harness, built for Apple Silicon (M-series) Macs.</strong></p>
 
 <p align="center">
   <img src="docs/images/hero-files.png" alt="Dropping research files into DeepSeek Harness Desktop" width="920">
