@@ -26,6 +26,15 @@ DeepSeek Harness Desktop wraps the upstream [DeepSeek Harness](https://github.co
   <img src="docs/images/architecture.svg" alt="How DeepSeek Harness Desktop fits between your Mac and upstream Harness" width="860">
 </p>
 
+<p align="center">
+  <img src="docs/images/ssh.fng" alt="How DeepSeek Harness Desktop fits between your Mac and upstream Harness" width="860">
+</p>
+
+<p align="center">
+  <img src="docs/images/computer_use.png" alt="How DeepSeek Harness Desktop fits between your Mac and upstream Harness" width="860">
+</p>
+
+
 - Drag papers, PDFs, Office files, code, and images from Finder straight into the conversation. Originals stay untouched.
 - Appshot (`⌘⇧⌥2`): capture the frontmost window, secrets masked locally, preview before anything is saved.
 - Computer Use: attach one app and operate it with Accessibility + local OCR; login, Keychain, and password fields are blocked.
