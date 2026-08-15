@@ -538,7 +538,10 @@ private func verifyStaticContracts(workspace: URL) throws {
         "private static let maximumUpstreamImagesPerMessage = 20",
         "CGImageSourceCreateWithURL",
         "window.addEventListener(\"deepseek-harness:model-route\"",
-        "webView.allowsUpstreamImageDrops = supportsDirectImageInput(providerID, modelID)",
+        "modelRouteValidationGeneration += 1",
+        "webView.allowsUpstreamImageDrops = false",
+        "activeSessionID == sessionID",
+        "self.supportsDirectImageInput(",
         "(webView as? DropAwareWKWebView)?.allowsUpstreamImageDrops = false"
     ], label: "WKWebView native lifecycle/FIFO/replay/model route")
 
@@ -728,18 +731,22 @@ private struct WebViewFileDropQA {
             label: "valid PNG before model route"
         )
 
-        // DeepSeek is text-only in the verified registry simulation.
+        // Reproduce the visible route from the product UI exactly. DeepSeek's
+        // current text-only Flash route must be consumed by the managed native
+        // path, including a pure PNG/JPEG batch. Reaching WKWebView here would
+        // let the upstream composer display its "model does not support image"
+        // toast instead of creating managed attachment cards.
         let deepSeekRoute: [String: Any] = [
             "version": 1,
             "sessionId": "session-A",
-            "provider": "deepseek-official",
-            "model": "deepseek-v4-pro"
+            "provider": "deepseek",
+            "model": "DeepSeek-V4-Flash"
         ]
         try publishModelRoute(
             to: webView,
             route: deepSeekRoute,
             routeRecorder: routeRecorder,
-            expectedQuery: ("deepseek-official", "deepseek-v4-pro")
+            expectedQuery: ("deepseek", "DeepSeek-V4-Flash")
         )
         try verifyNativeLifecycle(
             webView,
@@ -748,10 +755,78 @@ private struct WebViewFileDropQA {
             expectedURLs: [fixtures.png],
             recorder: recorder,
             probe: probe,
-            label: "valid PNG on DeepSeek route"
+            label: "valid PNG on the visible DeepSeek-V4-Flash route"
+        )
+        try verifyNativeLifecycle(
+            webView,
+            window: window,
+            pasteboard: makeFilePasteboard([fixtures.png, fixtures.jpg]),
+            expectedURLs: [fixtures.png, fixtures.jpg],
+            recorder: recorder,
+            probe: probe,
+            label: "pure PNG/JPEG batch on the visible DeepSeek-V4-Flash route"
         )
 
-        // Only the verified Kimi route enables the official upstream image path.
+        // The pinned registry spelling must remain text-only as well. Keeping
+        // both the live UI spelling and the registry spelling in this fixture
+        // prevents a provider/model alias change from silently reopening the
+        // upstream image path.
+        let deepSeekProRoute: [String: Any] = [
+            "version": 1,
+            "sessionId": "session-A",
+            "provider": "deepseek-official",
+            "model": "deepseek-v4-pro"
+        ]
+        try publishModelRoute(
+            to: webView,
+            route: deepSeekProRoute,
+            routeRecorder: routeRecorder,
+            expectedQuery: ("deepseek-official", "deepseek-v4-pro")
+        )
+        try verifyNativeLifecycle(
+            webView,
+            window: window,
+            pasteboard: makeFilePasteboard([fixtures.jpg]),
+            expectedURLs: [fixtures.jpg],
+            recorder: recorder,
+            probe: probe,
+            label: "valid JPEG on the pinned DeepSeek Pro route"
+        )
+
+        // A delayed capability event from another conversation must not grant
+        // upstream image handling to the active DeepSeek conversation. The
+        // page resolver still reports session-A, while this Kimi route belongs
+        // to session-B. This is the smallest race that can recreate the toast
+        // observed with a text-only model selected in the visible composer.
+        let staleKimiRoute: [String: Any] = [
+            "version": 1,
+            "sessionId": "session-B",
+            "provider": "moonshotai-cn",
+            "model": "kimi-k3"
+        ]
+        let capabilityQueriesBeforeStaleRoute = routeRecorder.queries.count
+        try publishModelRoute(
+            to: webView,
+            route: staleKimiRoute,
+            routeRecorder: routeRecorder,
+            expectedQuery: nil
+        )
+        try require(
+            routeRecorder.queries.count == capabilityQueriesBeforeStaleRoute,
+            "a stale Kimi route queried capabilities before matching its session"
+        )
+        try verifyNativeLifecycle(
+            webView,
+            window: window,
+            pasteboard: makeFilePasteboard([fixtures.png]),
+            expectedURLs: [fixtures.png],
+            recorder: recorder,
+            probe: probe,
+            label: "stale Kimi route from session-B while DeepSeek session-A is active"
+        )
+
+        // Only the verified Kimi route for this exact active session enables
+        // the official upstream image path.
         let kimiRoute: [String: Any] = [
             "version": 1,
             "sessionId": "session-A",
@@ -910,6 +985,6 @@ private struct WebViewFileDropQA {
         )
 
         window.contentView = nil
-        print("WEBVIEW_FILE_DROP_QA_OK pass_through=7 native=10 cancelled=1 model_routes=4 image_limits=3 real_wkwebview=1 superclass_probe=1 static_contracts=5")
+        print("WEBVIEW_FILE_DROP_QA_OK pass_through=7 native=13 cancelled=1 model_routes=6 image_limits=3 real_wkwebview=1 superclass_probe=1 static_contracts=5")
     }
 }

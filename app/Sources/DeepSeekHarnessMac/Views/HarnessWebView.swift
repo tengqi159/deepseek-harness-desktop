@@ -111,6 +111,7 @@ struct HarnessWebView: NSViewRepresentable {
         private var attachmentDispatchFailureCounts: [Int: Int] = [:]
         private var isDispatchingAttachments = false
         private var pageGeneration = 0
+        private var modelRouteValidationGeneration = 0
 
         init(
             onFailure: @escaping (String) -> Void,
@@ -148,12 +149,20 @@ struct HarnessWebView: NSViewRepresentable {
             _ body: [String: Any],
             webView: DropAwareWKWebView
         ) {
+            // A route publication is asynchronous relative to session changes.
+            // Revoke upstream image handling first, then grant it only after the
+            // route's session still matches the page's live composer session.
+            // This prevents a late image-capable route from another conversation
+            // from leaking into a text-only DeepSeek draft.
+            modelRouteValidationGeneration += 1
+            let validationGeneration = modelRouteValidationGeneration
+            let validationPageGeneration = pageGeneration
+            webView.allowsUpstreamImageDrops = false
+
             guard Self.strictInteger(body["version"], minimum: 1, maximum: 1) == 1 else {
-                webView.allowsUpstreamImageDrops = false
                 return
             }
             if Set(body.keys) == Set(["version"]) {
-                webView.allowsUpstreamImageDrops = false
                 return
             }
 
@@ -162,10 +171,37 @@ struct HarnessWebView: NSViewRepresentable {
                   let providerID = Self.boundedRouteText(body["provider"], maximum: 256),
                   let modelID = Self.boundedRouteText(body["model"], maximum: 512),
                   !sessionID.isEmpty else {
-                webView.allowsUpstreamImageDrops = false
                 return
             }
-            webView.allowsUpstreamImageDrops = supportsDirectImageInput(providerID, modelID)
+
+            let script = """
+            const resolver = window.__deepSeekHarnessResolveNativeAttachmentSession;
+            if (typeof resolver !== "function") return null;
+            const value = resolver();
+            return typeof value === "string" && value.length > 0 ? value : null;
+            """
+            webView.callAsyncJavaScript(
+                script,
+                arguments: [:],
+                in: nil,
+                in: .page
+            ) { [weak self, weak webView] result in
+                guard let self, let webView,
+                      self.pageGeneration == validationPageGeneration,
+                      self.modelRouteValidationGeneration == validationGeneration else {
+                    return
+                }
+                guard case .success(let value) = result,
+                      let activeSessionID = value as? String,
+                      activeSessionID == sessionID else {
+                    webView.allowsUpstreamImageDrops = false
+                    return
+                }
+                webView.allowsUpstreamImageDrops = self.supportsDirectImageInput(
+                    providerID,
+                    modelID
+                )
+            }
         }
 
         private func handleAttachmentLifecycle(_ body: [String: Any]) {
@@ -296,6 +332,7 @@ struct HarnessWebView: NSViewRepresentable {
             didStartProvisionalNavigation navigation: WKNavigation!
         ) {
             (webView as? DropAwareWKWebView)?.allowsUpstreamImageDrops = false
+            modelRouteValidationGeneration += 1
             dispatchedAttachmentRevisions.removeAll()
             attachmentDispatchFailureCounts.removeAll()
             isDispatchingAttachments = false
