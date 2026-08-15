@@ -32,12 +32,25 @@ struct ContentView: View {
                                 modelID: modelID
                             )
                         },
+                        currentHostRouteMatches: { providerID, modelID in
+                            await harness.currentHostRouteMatches(
+                                providerID: providerID,
+                                modelID: modelID
+                            )
+                        },
                         onFileDragStateChanged: { active in
                             isNativeFileDragActive = active
                         },
                         onFileURLsDropped: { urls, sessionID in
                             artifactStore.importDroppedFiles(
                                 urls,
+                                targetSessionID: sessionID
+                            )
+                        },
+                        onImageDataPasted: { data, fileExtension, sessionID in
+                            artifactStore.importPastedImageData(
+                                data,
+                                fileExtension: fileExtension,
                                 targetSessionID: sessionID
                             )
                         },
@@ -98,29 +111,22 @@ struct ContentView: View {
                 }
                 .help("选择 SSH 服务器与远程工作区")
 
-                if harness.isReady {
-                    Button {
-                        artifactStore.importFiles()
-                        showsArtifactWorkbench = true
-                    } label: {
-                        Label("导入文件", systemImage: "doc.badge.plus")
-                    }
-                    .help("导入 PDF、图片、Office、数据或代码文件")
-
+                Menu {
                     Button {
                         appshotStore.captureAfterSwitchingApplications()
                     } label: {
-                        Label("Appshot", systemImage: "macwindow.badge.plus")
+                        Label("创建 Appshot…", systemImage: "macwindow.badge.plus")
                     }
                     .disabled(appshotStore.isCapturing)
-                    .help("两秒后截取前台应用；全局快捷键 ⌘⇧⌥2")
 
                     Button {
                         artifactStore.refresh()
                         showsArtifactWorkbench = true
                     } label: {
-                        Label("研究文件", systemImage: "folder.badge.gearshape")
+                        Label("打开研究文件库…", systemImage: "tray.full")
                     }
+
+                    Divider()
 
                     Menu {
                         if attachmentStore.selectedBundleIdentifier != nil {
@@ -139,12 +145,19 @@ struct ContentView: View {
                             } label: {
                                 HStack {
                                     Image(nsImage: application.icon)
-                                    Text("\(application.name) · PID \(application.processIdentifier)")
+                                        .accessibilityHidden(true)
+                                    Text(applicationMenuTitle(for: application))
                                     if attachmentStore.isSelected(application) {
                                         Image(systemName: "checkmark")
+                                            .accessibilityHidden(true)
                                     }
                                 }
                             }
+                            .accessibilityLabel(
+                                attachmentStore.isSelected(application)
+                                    ? "\(applicationMenuTitle(for: application))，已附加"
+                                    : applicationMenuTitle(for: application)
+                            )
                         }
 
                         Divider()
@@ -154,22 +167,31 @@ struct ContentView: View {
                         } label: {
                             Label("刷新应用列表", systemImage: "arrow.clockwise")
                         }
-
-                        Button {
-                            attachmentStore.refreshPermissions()
-                            showsComputerUseSettings = true
-                        } label: {
-                            Label("电脑控制权限…", systemImage: "hand.raised")
-                        }
                     } label: {
-                        Label(
-                            attachmentStore.selectedApplicationName.map { "附加 \($0)" } ?? "附加应用",
-                            systemImage: attachmentStore.selectedBundleIdentifier == nil
-                                ? "paperclip"
-                                : "paperclip.circle.fill"
-                        )
+                        Label("附加运行中的应用", systemImage: "macwindow.and.cursorarrow")
                     }
 
+                    Button {
+                        attachmentStore.refreshPermissions()
+                        showsComputerUseSettings = true
+                    } label: {
+                        Label("电脑控制权限…", systemImage: "hand.raised")
+                    }
+                } label: {
+                    Label("上下文与附件",
+                        systemImage: attachmentStore.selectedBundleIdentifier == nil
+                            ? "paperclip"
+                            : "paperclip.circle.fill"
+                    )
+                }
+                .accessibilityValue(
+                    attachmentStore.selectedApplicationName.map { "已附加 \($0)" } ?? "未附加应用"
+                )
+                .accessibilityLabel("上下文与附件")
+                .accessibilityHint("文件可直接拖入或粘贴到对话；此菜单用于 Appshot、研究文件库和附加应用")
+                .help("文件直接拖入或粘贴到对话；这里管理 Appshot、研究文件库和附加应用")
+
+                if harness.isReady {
                     Button {
                         showsPluginHealthCenter = true
                     } label: {
@@ -266,6 +288,15 @@ struct ContentView: View {
         } message: {
             Text(artifactStore.dropError ?? "请检查文件后重试。")
         }
+    }
+
+    private func applicationMenuTitle(for application: AttachableApplication) -> String {
+        let hasDuplicateName = attachmentStore.applications.contains {
+            $0.id != application.id && $0.name == application.name
+        }
+        return hasDuplicateName
+            ? "\(application.name) · PID \(application.processIdentifier)"
+            : application.name
     }
 }
 

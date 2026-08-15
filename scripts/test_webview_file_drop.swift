@@ -86,6 +86,31 @@ private final class NavigationWaiter: NSObject, WKNavigationDelegate {
 }
 
 @MainActor
+private final class ApplicationKeyEventProbe {
+    private var monitor: Any?
+    private(set) var commandVEvents = 0
+
+    func install() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if modifiers == .command,
+               event.charactersIgnoringModifiers?.lowercased() == "v" {
+                self?.commandVEvents += 1
+            }
+            return event
+        }
+    }
+
+    func uninstall() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+    }
+}
+
+@MainActor
 private final class WebKitSuperclassProbe {
     private static var activeProbe: WebKitSuperclassProbe?
 
@@ -188,6 +213,159 @@ private func makeTextPasteboard() throws -> NSPasteboard {
     pasteboard.clearContents()
     try require(pasteboard.setString("ordinary text drag", forType: .string), "could not write text fixture")
     return pasteboard
+}
+
+@MainActor
+private struct GeneralPasteboardSnapshot {
+    private let items: [NSPasteboardItem]
+
+    init() {
+        items = (NSPasteboard.general.pasteboardItems ?? []).map { original in
+            let copy = NSPasteboardItem()
+            for type in original.types {
+                if let data = original.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        }
+    }
+
+    func restore() {
+        NSPasteboard.general.clearContents()
+        if !items.isEmpty {
+            _ = NSPasteboard.general.writeObjects(items)
+        }
+    }
+}
+
+@MainActor
+private func putFileURLsOnGeneralPasteboard(_ urls: [URL]) throws {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    try require(
+        pasteboard.writeObjects(urls.map { $0 as NSURL }),
+        "could not write file URLs to the general pasteboard fixture"
+    )
+}
+
+@MainActor
+private func putTextOnGeneralPasteboard(_ text: String) throws {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    try require(
+        pasteboard.setString(text, forType: .string),
+        "could not write ordinary text to the general pasteboard fixture"
+    )
+}
+
+@MainActor
+private func putRawPNGOnGeneralPasteboard(_ data: Data) throws {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    try require(
+        pasteboard.setData(data, forType: .png),
+        "could not write raw PNG data to the general pasteboard fixture"
+    )
+}
+
+@MainActor
+private func commandVPasteEvent(window: NSWindow) throws -> NSEvent {
+    try commandVPasteEvent(window: window, modifiers: .command)
+}
+
+@MainActor
+private func commandVPasteEvent(
+    window: NSWindow,
+    modifiers: NSEvent.ModifierFlags
+) throws -> NSEvent {
+    guard let event = NSEvent.keyEvent(
+        with: .keyDown,
+        location: .zero,
+        modifierFlags: modifiers,
+        timestamp: ProcessInfo.processInfo.systemUptime,
+        windowNumber: window.windowNumber,
+        context: nil,
+        characters: "v",
+        charactersIgnoringModifiers: "v",
+        isARepeat: false,
+        keyCode: 9
+    ) else {
+        throw WebViewDropQAFailure.message("could not create the synthetic Command-V event")
+    }
+    return event
+}
+
+@MainActor
+private func sendCommandVThroughApplication(
+    to webView: WKWebView,
+    window: NSWindow,
+    modifiers: NSEvent.ModifierFlags = .command
+) throws {
+    window.makeKeyAndOrderFront(nil)
+    try require(window.makeFirstResponder(webView), "WKWebView did not accept first-responder focus")
+    try focusOrdinaryPasteTarget(webView)
+    NSApp.sendEvent(try commandVPasteEvent(window: window, modifiers: modifiers))
+}
+
+@MainActor
+private func pageJavaScriptValue(
+    _ webView: WKWebView,
+    script: String,
+    label: String
+) throws -> Any? {
+    var finished = false
+    var value: Any?
+    var failure: Error?
+    webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
+        switch result {
+        case .success(let resultValue): value = resultValue
+        case .failure(let error): failure = error
+        }
+        finished = true
+    }
+    try runLoop(until: { finished }, timeout: 3, label: label)
+    if let failure {
+        throw WebViewDropQAFailure.message("\(label) failed: \(failure.localizedDescription)")
+    }
+    return value
+}
+
+@MainActor
+private func focusOrdinaryPasteTarget(_ webView: WKWebView) throws {
+    let value = try pageJavaScriptValue(
+        webView,
+        script: """
+        const target = document.getElementById("ordinary-paste-target");
+        if (!(target instanceof HTMLTextAreaElement)) return false;
+        target.value = "";
+        target.focus();
+        target.setSelectionRange(0, 0);
+        return document.activeElement === target;
+        """,
+        label: "ordinary paste target focus"
+    )
+    try require(value as? Bool == true, "fixture textarea did not receive DOM focus")
+}
+
+@MainActor
+private func DOMPasteEventCount(_ webView: WKWebView) throws -> Int {
+    let value = try pageJavaScriptValue(
+        webView,
+        script: "return window.__nativePasteQAEventCount ?? 0;",
+        label: "DOM paste event count"
+    )
+    return (value as? NSNumber)?.intValue ?? 0
+}
+
+@MainActor
+private func ordinaryPasteTargetValue(_ webView: WKWebView) throws -> String {
+    let value = try pageJavaScriptValue(
+        webView,
+        script: "return document.getElementById('ordinary-paste-target')?.value ?? '';",
+        label: "ordinary paste target value"
+    )
+    return value as? String ?? ""
 }
 
 private func writeImageFixture(_ data: Data, to url: URL, expectedType: String) throws {
@@ -301,6 +479,7 @@ private func makeFixtures(in root: URL) throws -> FixtureFiles {
 private final class DropRecorder {
     var states: [Bool] = []
     var drops: [([URL], String?)] = []
+    var imagePastes: [(data: Data, fileExtension: String, sessionID: String?)] = []
 }
 
 @MainActor
@@ -310,6 +489,28 @@ private final class RouteRecorder {
     func supports(provider: String, model: String) -> Bool {
         queries.append((provider, model))
         return provider == "moonshotai-cn" && model == "kimi-k3"
+    }
+}
+
+@MainActor
+private final class HostRouteRecorder {
+    private(set) var provider: String
+    private(set) var model: String
+    private(set) var checks: [(provider: String, model: String)] = []
+
+    init(provider: String, model: String) {
+        self.provider = provider
+        self.model = model
+    }
+
+    func set(provider: String, model: String) {
+        self.provider = provider
+        self.model = model
+    }
+
+    func matches(provider: String, model: String) -> Bool {
+        checks.append((provider, model))
+        return self.provider == provider && self.model == model
     }
 }
 
@@ -331,6 +532,7 @@ private func publishModelRoute(
 ) throws {
     var finished = false
     var failure: Error?
+    let queryCountBefore = routeRecorder.queries.count
     let script = """
     window.dispatchEvent(new CustomEvent("deepseek-harness:model-route", {
       detail: publishedRoute
@@ -359,7 +561,8 @@ private func publishModelRoute(
     if let expectedQuery {
         try runLoop(
             until: {
-                routeRecorder.queries.last.map {
+                routeRecorder.queries.count > queryCountBefore
+                    && routeRecorder.queries.last.map {
                     $0.provider == expectedQuery.provider && $0.model == expectedQuery.model
                 } == true
             },
@@ -409,6 +612,7 @@ private func publishAttachmentLifecycle(
 private func reset(_ recorder: DropRecorder) {
     recorder.states.removeAll()
     recorder.drops.removeAll()
+    recorder.imagePastes.removeAll()
 }
 
 @MainActor
@@ -469,6 +673,140 @@ private func verifyNativeLifecycle(
 }
 
 @MainActor
+private func verifyNativeFileURLPaste(
+    _ webView: WKWebView,
+    window: NSWindow,
+    url: URL,
+    recorder: DropRecorder,
+    eventProbe: ApplicationKeyEventProbe,
+    label: String
+) throws {
+    reset(recorder)
+    try putFileURLsOnGeneralPasteboard([url])
+    try focusOrdinaryPasteTarget(webView)
+    let pasteEventsBefore = try DOMPasteEventCount(webView)
+
+    try sendCommandVThroughApplication(to: webView, window: window)
+
+    try runLoop(until: { recorder.drops.count == 1 }, timeout: 3, label: "\(label) paste session resolution")
+    try require(recorder.states.isEmpty, "\(label) incorrectly activated the drag overlay")
+    try require(recorder.drops.count == 1, "\(label) invoked the native paste callback more than once")
+    try require(recorder.drops[0].0 == [url], "\(label) changed the pasted file URL")
+    try require(recorder.drops[0].1 == "session-A", "\(label) did not bind to the active session")
+    try require(recorder.imagePastes.isEmpty, "\(label) treated a file URL as raw image data")
+    let pasteEventsAfter = try DOMPasteEventCount(webView)
+    try require(pasteEventsAfter == pasteEventsBefore,
+                "\(label) leaked a paste event into WebKit")
+}
+
+@MainActor
+private func verifyOrdinaryTextPastePassThrough(
+    _ webView: WKWebView,
+    window: NSWindow,
+    recorder: DropRecorder,
+    eventProbe: ApplicationKeyEventProbe
+) throws {
+    reset(recorder)
+    try putTextOnGeneralPasteboard("ordinary clipboard text")
+    window.makeKeyAndOrderFront(nil)
+    try require(window.makeFirstResponder(webView), "WKWebView did not accept text-paste focus")
+    try focusOrdinaryPasteTarget(webView)
+    let handled = webView.performKeyEquivalent(with: try commandVPasteEvent(window: window))
+
+    try require(recorder.states.isEmpty, "ordinary text paste activated the drag overlay")
+    try require(recorder.drops.isEmpty, "ordinary text paste invoked the native file callback")
+    try require(recorder.imagePastes.isEmpty, "ordinary text paste invoked the native image callback")
+    try require(handled, "ordinary text paste did not reach WKWebView")
+}
+
+@MainActor
+private func verifyFilePasteIgnoredOutsideWebView(
+    _ webView: WKWebView,
+    window: NSWindow,
+    hostingView: NSView,
+    url: URL,
+    recorder: DropRecorder
+) throws {
+    reset(recorder)
+    try putFileURLsOnGeneralPasteboard([url])
+
+    let externalField = NSTextField(frame: NSRect(x: 8, y: 8, width: 180, height: 24))
+    externalField.stringValue = "native field"
+    hostingView.addSubview(externalField)
+    defer { externalField.removeFromSuperview() }
+
+    window.makeKeyAndOrderFront(nil)
+    try require(window.makeFirstResponder(externalField), "external native field did not accept focus")
+    externalField.selectText(nil)
+    NSApp.sendEvent(try commandVPasteEvent(window: window))
+    _ = webView.performKeyEquivalent(with: try commandVPasteEvent(window: window))
+    RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+    try require(recorder.states.isEmpty, "external field paste activated the drag overlay")
+    try require(recorder.drops.isEmpty, "external field paste was imported into the conversation")
+    try require(recorder.imagePastes.isEmpty, "external field paste invoked the image callback")
+}
+
+@MainActor
+private func verifyNativeRawPNGPaste(
+    _ webView: WKWebView,
+    window: NSWindow,
+    pngData: Data,
+    recorder: DropRecorder,
+    eventProbe: ApplicationKeyEventProbe,
+    modifiers: NSEvent.ModifierFlags = .command,
+    label: String = "raw PNG paste"
+) throws {
+    reset(recorder)
+    try putRawPNGOnGeneralPasteboard(pngData)
+    try focusOrdinaryPasteTarget(webView)
+    let pasteEventsBefore = try DOMPasteEventCount(webView)
+
+    try sendCommandVThroughApplication(to: webView, window: window, modifiers: modifiers)
+
+    try runLoop(
+        until: { recorder.imagePastes.count == 1 },
+        timeout: 3,
+        label: "\(label) session resolution"
+    )
+    try require(recorder.states.isEmpty, "\(label) activated the drag overlay")
+    try require(recorder.drops.isEmpty, "\(label) invoked the file-URL callback")
+    try require(recorder.imagePastes.count == 1, "\(label) invoked the image callback more than once")
+    let pasted = recorder.imagePastes[0]
+    try require(pasted.fileExtension == "png", "\(label) reported a non-PNG extension")
+    try require(pasted.sessionID == "session-A", "\(label) did not bind to session-A")
+    guard let source = CGImageSourceCreateWithData(pasted.data as CFData, nil),
+          CGImageSourceGetCount(source) == 1,
+          CGImageSourceGetType(source) as String? == "public.png",
+          CGImageSourceCreateImageAtIndex(source, 0, nil) != nil else {
+        throw WebViewDropQAFailure.message("\(label) callback data was not a decodable PNG")
+    }
+    let pasteEventsAfter = try DOMPasteEventCount(webView)
+    try require(pasteEventsAfter == pasteEventsBefore,
+                "managed DeepSeek \(label) leaked into WebKit")
+}
+
+@MainActor
+private func verifyRawPNGPastePassThrough(
+    _ webView: WKWebView,
+    window: NSWindow,
+    pngData: Data,
+    recorder: DropRecorder,
+    eventProbe: ApplicationKeyEventProbe
+) throws {
+    reset(recorder)
+    try putRawPNGOnGeneralPasteboard(pngData)
+    window.makeKeyAndOrderFront(nil)
+    try require(window.makeFirstResponder(webView), "WKWebView did not accept Kimi paste focus")
+    try focusOrdinaryPasteTarget(webView)
+    _ = webView.performKeyEquivalent(with: try commandVPasteEvent(window: window))
+
+    try require(recorder.states.isEmpty, "Kimi raw PNG paste activated the drag overlay")
+    try require(recorder.drops.isEmpty, "Kimi raw PNG paste invoked the native file callback")
+    try require(recorder.imagePastes.isEmpty, "Kimi raw PNG paste invoked the native image callback")
+}
+
+@MainActor
 private func verifyNativeCancellation(
     _ webView: WKWebView,
     window: NSWindow,
@@ -493,6 +831,12 @@ private func verifyNativeCancellation(
 private func requireSourceContract(_ source: String, contains snippets: [String], label: String) throws {
     for snippet in snippets where !source.contains(snippet) {
         throw WebViewDropQAFailure.message("\(label) lost required contract: \(snippet)")
+    }
+}
+
+private func requireSourceContract(_ source: String, excludes snippets: [String], label: String) throws {
+    for snippet in snippets where source.contains(snippet) {
+        throw WebViewDropQAFailure.message("\(label) retained forbidden contract: \(snippet)")
     }
 }
 
@@ -541,7 +885,19 @@ private func verifyStaticContracts(workspace: URL) throws {
         "modelRouteValidationGeneration += 1",
         "webView.allowsUpstreamImageDrops = false",
         "activeSessionID == sessionID",
+        "let currentHostRouteMatches: (String, String) async -> Bool",
+        "let matches = await self.currentHostRouteMatches(providerID, modelID)",
+        "guard matches else {",
         "self.supportsDirectImageInput(",
+        "override func performKeyEquivalent(with event: NSEvent) -> Bool",
+        "NSEvent.addLocalMonitorForEvents(matching: .keyDown)",
+        "self.ownsCurrentFirstResponder()",
+        "firstResponderView.isDescendant(of: self)",
+        "event.window === window",
+        "handleNativePasteboardIfNeeded(NSPasteboard.general)",
+        "return super.performKeyEquivalent(with: event)",
+        "webView.url.map({ !Self.isSameHarnessOrigin($0, as: url) }) ?? true",
+        "static func isSameHarnessOrigin(_ candidate: URL, as origin: URL) -> Bool",
         "(webView as? DropAwareWKWebView)?.allowsUpstreamImageDrops = false"
     ], label: "WKWebView native lifecycle/FIFO/replay/model route")
 
@@ -562,11 +918,26 @@ private func verifyStaticContracts(workspace: URL) throws {
         "nativeAttachmentPayloads: artifactStore.nativeAttachmentPayloads",
         "supportsDirectImageInput: { providerID, modelID in",
         "modelCapabilityStore.supportsDirectImageInput(",
+        "currentHostRouteMatches: { providerID, modelID in",
+        "await harness.currentHostRouteMatches(",
         "onFileURLsDropped: { urls, sessionID in",
         "targetSessionID: sessionID",
+        "onImageDataPasted: { data, fileExtension, sessionID in",
+        "artifactStore.importPastedImageData(",
         "onNativeAttachmentLifecycle: { event in",
-        "artifactStore.handleNativeAttachmentLifecycle(event)"
+        "artifactStore.handleNativeAttachmentLifecycle(event)",
+        "Label(\"上下文与附件\"",
+        "Label(\"创建 Appshot…\", systemImage: \"macwindow.badge.plus\")",
+        "Label(\"打开研究文件库…\", systemImage: \"tray.full\")",
+        "Label(\"附加运行中的应用\", systemImage: \"macwindow.and.cursorarrow\")",
+        "attachmentStore.selectedApplicationName.map { \"已附加 \\($0)\" } ?? \"未附加应用\""
     ], label: "ContentView session/model handoff")
+
+    try requireSourceContract(content, excludes: [
+        "Label(\"导入文件\", systemImage: \"doc.badge.plus\")",
+        "Label(\"Appshot\", systemImage: \"macwindow.badge.plus\")",
+        "Label(\"研究文件\", systemImage: \"folder.badge.gearshape\")"
+    ], label: "ContentView consolidated toolbar")
 
     try requireSourceContract(modelCapabilities, contains: [
         "func supportsDirectImageInput(providerID: String, modelID: String) -> Bool",
@@ -585,7 +956,10 @@ private func verifyStaticContracts(workspace: URL) throws {
         "Array.prototype.splice.call(queue, 0, queueLength, ...retained)",
         "const MODEL_ROUTE_EVENT_NAME = \"deepseek-harness:model-route\"",
         "const LIFECYCLE_EVENT_NAME = \"deepseek-harness:native-attachment-lifecycle\"",
-        "markLifecycleRemoved(sessionId, entry.revision, entry.id)",
+        "ctx.slots.inject(\"shell.overlay\"",
+        "store.entryExact(",
+        "reconcileSessionAndPublish(originSessionId, committedDraft)",
+        "getSnapshot: () => store.snapshotAll()",
         "publishLifecycle(\"removed\"",
         "route = modelRouteFromState(currentSessionId, directory.store.getSnapshot())",
         "publish(null, true)"
@@ -605,11 +979,43 @@ private struct WebViewFileDropQA {
         let workspace = sourceFile.deletingLastPathComponent().deletingLastPathComponent()
         try verifyStaticContracts(workspace: workspace)
 
+        let harnessOrigin = URL(string: "http://127.0.0.1:9")!
+        try require(
+            HarnessWebView.isSameHarnessOrigin(
+                URL(string: "http://127.0.0.1:9/")!,
+                as: harnessOrigin
+            ),
+            "a trailing slash made the same Harness origin look different"
+        )
+        try require(
+            HarnessWebView.isSameHarnessOrigin(
+                URL(string: "http://127.0.0.1:9/session/local?view=chat#composer")!,
+                as: harnessOrigin
+            ),
+            "a same-origin client route made the native shell reload Harness"
+        )
+        try require(
+            !HarnessWebView.isSameHarnessOrigin(
+                URL(string: "http://127.0.0.1:10/")!,
+                as: harnessOrigin
+            ),
+            "a different Harness port was accepted as the current origin"
+        )
+
         let fixtures = try makeFixtures(in: URL(fileURLWithPath: fixtureRootPath, isDirectory: true))
         let recorder = DropRecorder()
         let routeRecorder = RouteRecorder()
+        let hostRouteRecorder = HostRouteRecorder(
+            provider: "deepseek",
+            model: "DeepSeek-V4-Flash"
+        )
         let lifecycleRecorder = LifecycleRecorder()
         _ = NSApplication.shared
+        let generalPasteboardSnapshot = GeneralPasteboardSnapshot()
+        defer { generalPasteboardSnapshot.restore() }
+        let applicationKeyEventProbe = ApplicationKeyEventProbe()
+        applicationKeyEventProbe.install()
+        defer { applicationKeyEventProbe.uninstall() }
 
         let representable = HarnessWebView(
             url: URL(string: "http://127.0.0.1:9/")!,
@@ -618,8 +1024,16 @@ private struct WebViewFileDropQA {
             supportsDirectImageInput: { providerID, modelID in
                 routeRecorder.supports(provider: providerID, model: modelID)
             },
+            currentHostRouteMatches: { providerID, modelID in
+                await MainActor.run {
+                    hostRouteRecorder.matches(provider: providerID, model: modelID)
+                }
+            },
             onFileDragStateChanged: { recorder.states.append($0) },
             onFileURLsDropped: { urls, sessionID in recorder.drops.append((urls, sessionID)) },
+            onImageDataPasted: { data, fileExtension, sessionID in
+                recorder.imagePastes.append((data, fileExtension, sessionID))
+            },
             onNativeAttachmentLifecycle: { lifecycleRecorder.record($0) },
             onFailure: { _ in }
         )
@@ -646,7 +1060,17 @@ private struct WebViewFileDropQA {
         let navigationWaiter = NavigationWaiter()
         webView.navigationDelegate = navigationWaiter
         webView.loadHTMLString(
-            "<html><body>drop fixture<script>window.__deepSeekHarnessResolveNativeAttachmentSession = () => 'session-A';</script></body></html>",
+            """
+            <html><body>
+            <textarea id="ordinary-paste-target" aria-label="ordinary paste target"></textarea>
+            drop fixture<script>
+            window.__nativePasteQAEventCount = 0;
+            document.addEventListener("paste", () => {
+              window.__nativePasteQAEventCount += 1;
+            }, true);
+            window.__deepSeekHarnessResolveNativeAttachmentSession = () => 'session-A';
+            </script></body></html>
+            """,
             baseURL: URL(string: "http://127.0.0.1:9/")!
         )
         try runLoop(
@@ -777,6 +1201,7 @@ private struct WebViewFileDropQA {
             "provider": "deepseek-official",
             "model": "deepseek-v4-pro"
         ]
+        hostRouteRecorder.set(provider: "deepseek-official", model: "deepseek-v4-pro")
         try publishModelRoute(
             to: webView,
             route: deepSeekProRoute,
@@ -791,6 +1216,43 @@ private struct WebViewFileDropQA {
             recorder: recorder,
             probe: probe,
             label: "valid JPEG on the pinned DeepSeek Pro route"
+        )
+        try verifyNativeFileURLPaste(
+            webView,
+            window: window,
+            url: fixtures.png,
+            recorder: recorder,
+            eventProbe: applicationKeyEventProbe,
+            label: "general-pasteboard PNG file URL on DeepSeek Pro"
+        )
+        try verifyOrdinaryTextPastePassThrough(
+            webView,
+            window: window,
+            recorder: recorder,
+            eventProbe: applicationKeyEventProbe
+        )
+        try verifyFilePasteIgnoredOutsideWebView(
+            webView,
+            window: window,
+            hostingView: hostingView,
+            url: fixtures.png,
+            recorder: recorder
+        )
+        try verifyNativeRawPNGPaste(
+            webView,
+            window: window,
+            pngData: try Data(contentsOf: fixtures.png),
+            recorder: recorder,
+            eventProbe: applicationKeyEventProbe
+        )
+        try verifyNativeRawPNGPaste(
+            webView,
+            window: window,
+            pngData: try Data(contentsOf: fixtures.png),
+            recorder: recorder,
+            eventProbe: applicationKeyEventProbe,
+            modifiers: [.command, .capsLock],
+            label: "raw PNG paste with Caps Lock"
         )
 
         // A delayed capability event from another conversation must not grant
@@ -825,19 +1287,78 @@ private struct WebViewFileDropQA {
             label: "stale Kimi route from session-B while DeepSeek session-A is active"
         )
 
-        // Only the verified Kimi route for this exact active session enables
-        // the official upstream image path.
+        // Session identity alone is insufficient during a same-conversation
+        // model switch. A delayed Kimi event can still belong to session-A
+        // after the page/Host has already switched that session to DeepSeek
+        // Pro. Passing the capability registry is not sufficient: the Host's
+        // current provider/model must also match before passthrough is enabled.
         let kimiRoute: [String: Any] = [
             "version": 1,
             "sessionId": "session-A",
             "provider": "moonshotai-cn",
             "model": "kimi-k3"
         ]
+        let capabilityQueriesBeforeSameSessionStaleRoute = routeRecorder.queries.count
+        let hostChecksBeforeSameSessionStaleRoute = hostRouteRecorder.checks.count
+        try publishModelRoute(
+            to: webView,
+            route: kimiRoute,
+            routeRecorder: routeRecorder,
+            expectedQuery: nil
+        )
+        try runLoop(
+            until: {
+                hostRouteRecorder.checks.count == hostChecksBeforeSameSessionStaleRoute + 1
+            },
+            timeout: 3,
+            label: "same-session Kimi Host route validation"
+        )
+        try require(
+            hostRouteRecorder.checks.count == hostChecksBeforeSameSessionStaleRoute + 1,
+            "a same-session Kimi route was not checked against the Host's current provider/model"
+        )
+        try require(
+            routeRecorder.queries.count == capabilityQueriesBeforeSameSessionStaleRoute,
+            "a stale same-session Kimi route queried capabilities while the Host route was DeepSeek Pro"
+        )
+        try verifyNativeLifecycle(
+            webView,
+            window: window,
+            pasteboard: makeFilePasteboard([fixtures.png]),
+            expectedURLs: [fixtures.png],
+            recorder: recorder,
+            probe: probe,
+            label: "stale same-session Kimi route while the Host route is DeepSeek Pro"
+        )
+
+        // Only an exact match between the active session, the page/Host's live
+        // provider/model, and the verified Kimi event enables the official
+        // upstream image path.
+        hostRouteRecorder.set(provider: "moonshotai-cn", model: "kimi-k3")
+        let hostChecksBeforeMatchingKimiRoute = hostRouteRecorder.checks.count
         try publishModelRoute(
             to: webView,
             route: kimiRoute,
             routeRecorder: routeRecorder,
             expectedQuery: ("moonshotai-cn", "kimi-k3")
+        )
+        try runLoop(
+            until: {
+                hostRouteRecorder.checks.count == hostChecksBeforeMatchingKimiRoute + 1
+            },
+            timeout: 3,
+            label: "matching Kimi Host route validation"
+        )
+        try require(
+            hostRouteRecorder.checks.count == hostChecksBeforeMatchingKimiRoute + 1,
+            "an exact same-session Kimi route did not revalidate against the Host"
+        )
+        try verifyRawPNGPastePassThrough(
+            webView,
+            window: window,
+            pngData: try Data(contentsOf: fixtures.png),
+            recorder: recorder,
+            eventProbe: applicationKeyEventProbe
         )
         for (label, url) in [
             ("PNG", fixtures.png),
@@ -961,6 +1482,7 @@ private struct WebViewFileDropQA {
             "provider": "moonshotai-cn",
             "model": "unknown-model"
         ]
+        hostRouteRecorder.set(provider: "moonshotai-cn", model: "unknown-model")
         try publishModelRoute(
             to: webView,
             route: unknownRoute,
@@ -985,6 +1507,6 @@ private struct WebViewFileDropQA {
         )
 
         window.contentView = nil
-        print("WEBVIEW_FILE_DROP_QA_OK pass_through=7 native=13 cancelled=1 model_routes=6 image_limits=3 real_wkwebview=1 superclass_probe=1 static_contracts=5")
+        print("WEBVIEW_FILE_DROP_QA_OK pass_through=7 native=14 pastes=5 cancelled=1 model_routes=7 image_limits=3 real_wkwebview=1 superclass_probe=1 local_event_monitor=1 static_contracts=5")
     }
 }

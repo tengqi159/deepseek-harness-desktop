@@ -12,6 +12,26 @@ This project is an unofficial companion and versions its native wrapper independ
 - Clean-machine installation and Gatekeeper acceptance testing.
 - Broader architecture qualification beyond the currently tested Apple Silicon build.
 
+## [1.6.9-source-preview] - 2026-08-15
+
+### Fixed
+
+- Bound attachment delivery to the conversation that owns it, including delayed acknowledgements, reload/replay, removal, and a newly created blank conversation. Removed PDF, image, and Markdown cards no longer reappear or overwrite the user's draft.
+- Bound image routing to both the active conversation and the current host-selected provider/model. A delayed route from another conversation, or a stale route for the same conversation, can no longer send a DeepSeek image through the upstream image composer and trigger the misleading “current model does not support images” failure.
+- Added a native clipboard path for image files and image data. Text-only, unknown, changing, or mixed routes now fall back to a session-bound managed attachment; ordinary text paste remains ordinary text paste.
+- Stopped needless local WKWebView reloads caused by equivalent URLs such as a trailing slash or a client-side route. This prevents an attachment arriving in a blank conversation from disappearing with the in-page state.
+
+### Changed
+
+- Consolidated the separate Import, Appshot, and Research Files toolbar buttons into one **Context & Attachments** menu. Dragging or pasting still adds material directly to the current conversation.
+- Kept direct image sending limited to an exact verified visual route. The pinned DeepSeek text route remains an honest managed-file/local-tool path rather than claiming raw pixels were sent.
+
+### Validation
+
+- Release build completed for all five Swift products.
+- Native attachment lifecycle, real WKWebView drag/drop and clipboard routing, Artifact Bridge (17 checks), Appshot (26 checks), and disposable Computer Use (37 checks) regression suites passed.
+- Remote Host selection and the isolated fake-SSH bridge passed 29 checks across 11 tools with real_connections=0.
+
 ## [1.6.1-source-preview] - 2026-08-15
 
 ### Fixed
@@ -87,7 +107,8 @@ This project is an unofficial companion and versions its native wrapper independ
 - The current local `.app` is Apple Silicon (`arm64`), requires macOS 14 or later, and depends on a separately installed pinned `dsh` runtime.
 - No app ZIP is published with this preview: current development builds are not signed with an Apple Developer ID and are not notarized by Apple.
 
-[Unreleased]: https://github.com/tengqi159/deepseek-harness-desktop/compare/v1.6.1-source-preview...HEAD
+[Unreleased]: https://github.com/tengqi159/deepseek-harness-desktop/compare/v1.6.9-source-preview...HEAD
+[1.6.9-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.6.9-source-preview
 [1.6.1-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.6.1-source-preview
 [1.6.0-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.6.0-source-preview
 [1.5.0-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.5.0-source-preview

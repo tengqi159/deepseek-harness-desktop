@@ -1,5 +1,7 @@
 import AppKit
+import CoreFoundation
 import Foundation
+import ImageIO
 
 struct ManagedArtifact: Identifiable, Hashable, Sendable {
     enum Kind: String, Sendable {
@@ -96,8 +98,14 @@ final class ArtifactStore: ObservableObject {
     nonisolated static let maximumDropBatchBytes: Int64 = 512 * 1_024 * 1_024
     nonisolated static let maximumDropFileCount = 32
     nonisolated static let maximumNativeAttachmentPayloads = 32
+    nonisolated static let maximumJavaScriptSafeInteger = 9_007_199_254_740_991
+    private static let nativeAttachmentRevisionHighWaterKey =
+        "DeepSeekHarness.NativeAttachmentRevisionHighWater"
 
-    private var nativeAttachmentRevision = 0
+    // Revisions are consumed by a long-lived web session and must not repeat when
+    // the native shell is rebuilt or relaunched. Epoch milliseconds plus a
+    // persisted high-water mark stay below Number.MAX_SAFE_INTEGER and preserve FIFO.
+    private var nativeAttachmentRevision: Int
 
     nonisolated static var rootURL: URL {
 #if DEBUG
@@ -129,6 +137,7 @@ final class ArtifactStore: ObservableObject {
     private var observer: NSObjectProtocol?
 
     init() {
+        nativeAttachmentRevision = Self.initialNativeAttachmentRevision()
         prepareDirectories()
         refresh()
         observer = NotificationCenter.default.addObserver(
@@ -186,22 +195,8 @@ final class ArtifactStore: ObservableObject {
 
     func importDroppedFiles(_ sources: [URL], targetSessionID: String?) {
         dropError = nil
-        guard let targetSessionID,
-              !targetSessionID.isEmpty,
-              targetSessionID.count <= 512,
-              !targetSessionID.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
-            dropError = "当前会话尚未准备好接收文件，请等待输入框出现后再拖入。"
-            return
-        }
-        guard !isImportingDroppedFiles else {
-            dropError = "上一批文件仍在导入，请稍候再试。"
-            return
-        }
-        guard nativeAttachmentPayloads.lazy.filter({ $0.deliveryState == .pending }).count
-                < Self.maximumNativeAttachmentPayloads else {
-            dropError = "仍有 32 批附件等待加入对话，请等待卡片出现或重新载入界面后再试。"
-            return
-        }
+        guard let targetSessionID = validatedImportSession(targetSessionID),
+              canBeginNativeAttachmentImport() else { return }
 
         let uniqueSources = Self.uniqueFileURLs(sources)
         guard !uniqueSources.isEmpty else {
@@ -220,46 +215,162 @@ final class ArtifactStore: ObservableObject {
             }.value
 
             guard let self else { return }
-            self.isImportingDroppedFiles = false
-            self.refresh()
-
-            if !result.imported.isEmpty {
-                self.nativeAttachmentRevision += 1
-                let payload = NativeAttachmentPayload(
-                    revision: self.nativeAttachmentRevision,
-                    sessionID: targetSessionID,
-                    attachments: result.imported.map { artifact in
-                        NativeAttachmentPayload.Attachment(
-                            id: artifact.id,
-                            displayName: artifact.displayName,
-                            kind: artifact.kind.rawValue,
-                            relativePath: artifact.relativePath,
-                            byteCount: artifact.byteCount,
-                            sizeDescription: artifact.sizeDescription
-                        )
-                    },
-                    deliveryState: .pending
-                )
-                self.nativeAttachmentPayloads.append(payload)
-                while self.nativeAttachmentPayloads.count > Self.maximumNativeAttachmentPayloads,
-                      let acceptedIndex = self.nativeAttachmentPayloads.firstIndex(where: {
-                          $0.deliveryState == .accepted
-                      }) {
-                    // Pending deliveries are never silently evicted. Only bounded
-                    // replay history that the web client has acknowledged may age out.
-                    self.nativeAttachmentPayloads.remove(at: acceptedIndex)
-                }
-                self.selectedArtifactID = result.imported.last?.id
-                NotificationCenter.default.post(
-                    name: .deepSeekArtifactsDidChange,
-                    object: nil
-                )
-            }
-
-            if !result.errors.isEmpty {
-                self.dropError = result.errors.joined(separator: "\n")
-            }
+            self.finishNativeAttachmentImport(result, targetSessionID: targetSessionID)
         }
+    }
+
+    func importPastedImageData(
+        _ data: Data,
+        fileExtension: String,
+        targetSessionID: String?
+    ) {
+        dropError = nil
+        guard let targetSessionID = validatedImportSession(targetSessionID),
+              canBeginNativeAttachmentImport() else { return }
+
+        let normalizedExtension = fileExtension.lowercased()
+        let allowedExtensions = Set(["png", "jpg", "jpeg", "gif", "tiff"])
+        guard allowedExtensions.contains(normalizedExtension),
+              !data.isEmpty,
+              Int64(data.count) <= Self.maximumImportBytes,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0 else {
+            dropError = "剪贴板中的图片数据无效或超过大小上限。"
+            return
+        }
+
+        isImportingDroppedFiles = true
+        Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                let stagingDirectory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(
+                        "deepseek-harness-paste-\(UUID().uuidString.lowercased())",
+                        isDirectory: true
+                    )
+                defer { try? FileManager.default.removeItem(at: stagingDirectory) }
+                do {
+                    try FileManager.default.createDirectory(
+                        at: stagingDirectory,
+                        withIntermediateDirectories: false,
+                        attributes: [.posixPermissions: 0o700]
+                    )
+                    let stagedImage = stagingDirectory.appendingPathComponent(
+                        "pasted-image.\(normalizedExtension)",
+                        isDirectory: false
+                    )
+                    try data.write(to: stagedImage, options: [.atomic])
+                    try FileManager.default.setAttributes(
+                        [.posixPermissions: 0o600],
+                        ofItemAtPath: stagedImage.path
+                    )
+                    return Self.importDropBatch([stagedImage])
+                } catch {
+                    return DropImportResult(
+                        imported: [],
+                        errors: ["剪贴板图片：\(error.localizedDescription)"]
+                    )
+                }
+            }.value
+
+            guard let self else { return }
+            self.finishNativeAttachmentImport(result, targetSessionID: targetSessionID)
+        }
+    }
+
+    private func validatedImportSession(_ targetSessionID: String?) -> String? {
+        guard let targetSessionID,
+              !targetSessionID.isEmpty,
+              targetSessionID.count <= 512,
+              !targetSessionID.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
+            dropError = "当前会话尚未准备好接收文件，请等待输入框出现后再试。"
+            return nil
+        }
+        return targetSessionID
+    }
+
+    private func canBeginNativeAttachmentImport() -> Bool {
+        guard !isImportingDroppedFiles else {
+            dropError = "上一批文件仍在导入，请稍候再试。"
+            return false
+        }
+        guard nativeAttachmentPayloads.lazy.filter({ $0.deliveryState == .pending }).count
+                < Self.maximumNativeAttachmentPayloads else {
+            dropError = "仍有 32 批附件等待加入对话，请等待卡片出现或重新载入界面后再试。"
+            return false
+        }
+        return true
+    }
+
+    private func finishNativeAttachmentImport(
+        _ result: DropImportResult,
+        targetSessionID: String
+    ) {
+        isImportingDroppedFiles = false
+        refresh()
+
+        if !result.imported.isEmpty {
+            guard nativeAttachmentRevision < Self.maximumJavaScriptSafeInteger else {
+                dropError = "附件批次编号已达到安全上限，请重新启动 DeepSeek Harness 后再试。"
+                return
+            }
+            nativeAttachmentRevision += 1
+            Self.persistNativeAttachmentRevision(nativeAttachmentRevision)
+            let payload = NativeAttachmentPayload(
+                revision: nativeAttachmentRevision,
+                sessionID: targetSessionID,
+                attachments: result.imported.map { artifact in
+                    NativeAttachmentPayload.Attachment(
+                        id: artifact.id,
+                        displayName: artifact.displayName,
+                        kind: artifact.kind.rawValue,
+                        relativePath: artifact.relativePath,
+                        byteCount: artifact.byteCount,
+                        sizeDescription: artifact.sizeDescription
+                    )
+                },
+                deliveryState: .pending
+            )
+            self.nativeAttachmentPayloads.append(payload)
+            while self.nativeAttachmentPayloads.count > Self.maximumNativeAttachmentPayloads,
+                  let acceptedIndex = self.nativeAttachmentPayloads.firstIndex(where: {
+                      $0.deliveryState == .accepted
+                  }) {
+                self.nativeAttachmentPayloads.remove(at: acceptedIndex)
+            }
+            selectedArtifactID = result.imported.last?.id
+            NotificationCenter.default.post(name: .deepSeekArtifactsDidChange, object: nil)
+        }
+
+        if !result.errors.isEmpty {
+            dropError = result.errors.joined(separator: "\n")
+        }
+    }
+
+    private static func initialNativeAttachmentRevision() -> Int {
+        let maximumSeed = maximumJavaScriptSafeInteger - maximumNativeAttachmentPayloads - 1
+        let clockSeed = min(maximumSeed, max(1, Int(Date().timeIntervalSince1970 * 1_000)))
+#if DEBUG
+        // Disposable QA stores must not mutate the user's application defaults.
+        if ProcessInfo.processInfo.environment["DSH_ARTIFACT_STORE_ROOT"] != nil {
+            return clockSeed
+        }
+#endif
+        let stored = (UserDefaults.standard.object(
+            forKey: nativeAttachmentRevisionHighWaterKey
+        ) as? NSNumber)?.intValue ?? 0
+        let boundedStored = min(maximumSeed - 1, max(0, stored))
+        let seed = max(clockSeed, boundedStored + 1)
+        UserDefaults.standard.set(seed, forKey: nativeAttachmentRevisionHighWaterKey)
+        return seed
+    }
+
+    private static func persistNativeAttachmentRevision(_ revision: Int) {
+#if DEBUG
+        if ProcessInfo.processInfo.environment["DSH_ARTIFACT_STORE_ROOT"] != nil {
+            return
+        }
+#endif
+        UserDefaults.standard.set(revision, forKey: nativeAttachmentRevisionHighWaterKey)
     }
 
     func handleNativeAttachmentLifecycle(_ event: NativeAttachmentLifecycleEvent) {

@@ -51,7 +51,9 @@ const fakeWindow = {
   },
   dispatch(name, detail) {
     for (const listener of listeners.get(name) ?? []) listener({ type: name, detail });
-  }
+  },
+  setTimeout: globalThis.setTimeout.bind(globalThis),
+  clearTimeout: globalThis.clearTimeout.bind(globalThis)
 };
 
 Function("window", source)(fakeWindow);
@@ -230,6 +232,30 @@ assert.equal(
   "the exact higher revision must still deduplicate"
 );
 
+const duplicateIdentityStore = plugin.createAttachmentStore();
+const duplicatePath = `Inbox/${uuid3}/shared-name.txt`;
+const duplicateA = plugin.validatePayload(payload(61, [attachment(duplicatePath)])).value;
+const duplicateB = plugin.validatePayload(payload(62, [attachment(duplicatePath)], {
+  sessionId: "session-2"
+})).value;
+duplicateIdentityStore.commit(duplicateIdentityStore.plan("session-1", duplicateA, "A"));
+duplicateIdentityStore.commit(duplicateIdentityStore.plan("session-2", duplicateB, "B"));
+assert.equal(duplicateIdentityStore.snapshotAll().length, 2, "same id across sessions must remain distinct");
+assert.equal(
+  duplicateIdentityStore.entryExact("session-1", 61, duplicatePath)?.sessionId,
+  "session-1"
+);
+assert.equal(
+  duplicateIdentityStore.entryExact("session-2", 62, duplicatePath)?.sessionId,
+  "session-2"
+);
+duplicateIdentityStore.reconcile("session-1", "A");
+assert.equal(
+  duplicateIdentityStore.entryExact("session-2", 62, duplicatePath)?.sessionId,
+  "session-2",
+  "reconciling session-1 must not remove the same id from session-2"
+);
+
 const userDraft = "用户原文\n第二行";
 let draft = userDraft;
 let draftB = "B 会话原文";
@@ -281,6 +307,7 @@ const modelStoreB = createModelStore({
 let registered;
 let warningCount = 0;
 let currentSessionId = "session-1";
+let directShellCalls = 0;
 const previousResolver = () => "previous-session";
 fakeWindow.__deepSeekHarnessResolveNativeAttachmentSession = previousResolver;
 const ctx = {
@@ -290,7 +317,13 @@ const ctx = {
         ? inputFacade
         : candidate === actxB
           ? inputFacadeB
-          : undefined
+          : undefined,
+      shell(sessionId) {
+        directShellCalls += 1;
+        if (sessionId === "session-1") return inputFacade;
+        if (sessionId === "session-2") return inputFacadeB;
+        throw new Error("unknown input shell");
+      }
     }
   },
   effect(setup) {
@@ -313,15 +346,15 @@ const ctx = {
         return () => sessionListListeners.delete(listener);
       }
     },
-    scope: (sessionId) => sessionId === "session-1"
-      ? actx
-      : sessionId === "session-2"
+    // Reproduce the blank-new-session window: a binding/input shell exists,
+    // but the root session scope is not queryable yet.
+    scope: (sessionId) => sessionId === "session-2"
         ? actxB
         : undefined
   },
   slots: {
     inject(name, setup) {
-      assert.equal(name, "conversation.input.dock");
+      assert.equal(name, "shell.overlay");
       return setup();
     },
     register(specification, component) {
@@ -338,12 +371,13 @@ fakeWindow.__deepSeekHarnessNativeAttachmentQueue.push({
 plugin.apply(ctx);
 assert.notEqual(fakeWindow.__deepSeekHarnessResolveNativeAttachmentSession, previousResolver);
 assert.equal(fakeWindow.__deepSeekHarnessResolveNativeAttachmentSession(), "session-1");
-assert.equal(registered.specification.name, "conversation.input.dock");
+assert.equal(registered.specification.name, "shell.overlay");
 assert.equal(registered.specification.id, "native-attachments");
 assert.equal(typeof registered.specification.inject, "function");
 const line1 = plugin.managedReferenceLine(path1, 1);
 assert.equal(draft, `${userDraft}\n${line1}`);
 assert.deepEqual(fakeWindow.__deepSeekHarnessNativeAttachmentQueue, []);
+assert.equal(directShellCalls > 0, true, "new-session payload did not use the direct input shell");
 const modelRouteDetails = () => dispatchedEvents
   .filter((event) => event.type === plugin.MODEL_ROUTE_EVENT_NAME)
   .map((event) => event.detail);
@@ -364,9 +398,16 @@ assert.deepEqual(modelRouteDetails().at(-1), {
 });
 
 const sourceForSession = registered.specification.inject("session-1").source;
-const rendered = registered.component({ input: { draft }, source: sourceForSession });
+const rendered = registered.component({ source: sourceForSession });
 assert.match(JSON.stringify(rendered), /paper\.pdf/u);
 assert.match(JSON.stringify(rendered), /data-native-attachment-dock/u);
+const provisionalSource = registered.specification.inject("new-session-slot-before-root-scope").source;
+const provisionalRendered = registered.component({ source: provisionalSource });
+assert.match(
+  JSON.stringify(provisionalRendered),
+  /paper\.pdf/u,
+  "a blank-new-session slot id mismatch hid a committed attachment card"
+);
 
 const afterFirstRevision = draft;
 let acceptedCount = 0;
@@ -424,16 +465,23 @@ assert.equal(draftB, "B 会话原文", "a session switch must not redirect an in
 assert.equal(acceptedCount, 3);
 
 const draftBeforeRejectedRemoval = draft;
+currentSessionId = "session-1";
+const removalRendered = registered.component({ source: sourceForSession });
+const removalButtons = collectRenderedElements(
+  removalRendered,
+  (element) => element.type === "button" && typeof element.props?.onClick === "function"
+);
+assert.equal(removalButtons.length, 2, "the origin session must render both attachment removals");
 acceptDraftWrites = false;
-sourceForSession.remove(path1);
+removalButtons[0].props.onClick();
 assert.equal(draft, draftBeforeRejectedRemoval);
 assert.match(
-  JSON.stringify(registered.component({ input: { draft }, source: sourceForSession })),
+  JSON.stringify(registered.component({ source: sourceForSession })),
   /paper\.pdf/u,
   "a card must remain when the input machine rejects its removal"
 );
 acceptDraftWrites = true;
-sourceForSession.remove(path1);
+removalButtons[0].props.onClick();
 assert.equal(draft, `${userDraft}\n${line2}`);
 assert.equal(draft.startsWith(userDraft), true, "removing a card must preserve the user draft exactly");
 
@@ -484,9 +532,9 @@ assert.equal(liveHigherRevisionAccepted, 1, "a higher live revision in another s
 assert.match(draftB, /second-queued\.txt/u);
 assert.equal(fakeWindow.__deepSeekHarnessNativeAttachmentQueue.length, 1);
 acceptDraftWrites = true;
-for (const listener of sessionListListeners) listener();
+await new Promise((resolve) => setTimeout(resolve, 250));
 assert.deepEqual(fakeWindow.__deepSeekHarnessNativeAttachmentQueue, []);
-assert.match(draft, /queued\.txt/u, "a lower blocked revision must still commit after a higher live revision");
+assert.match(draft, /queued\.txt/u, "a blocked draft did not retry when it became writable");
 
 fakeWindow.dispatch(plugin.EVENT_NAME, {
   payload: payload(5, [attachment(path1)], { version: 2 }),
@@ -544,6 +592,7 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 assert.equal(manifest.dsh.client.platform, "web");
 assert.deepEqual(manifest.dsh.client.inject, [
   "@deepseek-ai/dsh-client-runtime",
+  "@deepseek-ai/dsh-client-ui-layout",
   "@deepseek-ai/dsh-client-ui-conversation",
   "@deepseek-ai/dsh-client-ui-model-selection"
 ]);
@@ -886,8 +935,13 @@ assert.deepEqual(
   "the managed DeepSeek image must acknowledge its exact drop-time session"
 );
 const deepSeekFlashSource = registered.specification.inject("session-1").source;
+assert.equal(
+  registered.component({ source: deepSeekFlashSource }),
+  null,
+  "an attachment from session-1 must not appear while session-2 is current"
+);
+currentSessionId = "session-1";
 const deepSeekFlashRendered = registered.component({
-  input: { draft },
   source: deepSeekFlashSource
 });
 const deepSeekFlashRemoveButtons = collectRenderedElements(
@@ -899,7 +953,7 @@ assert.match(JSON.stringify(deepSeekFlashRendered), /deepseek-flash-drop\.png/u)
 deepSeekFlashRemoveButtons[0].props.onClick();
 assert.equal(draft, deepSeekFlashUserDraft, "removing the PNG card must preserve user text");
 assert.equal(
-  registered.component({ input: { draft }, source: deepSeekFlashSource }),
+  registered.component({ source: deepSeekFlashSource }),
   null,
   "the removed DeepSeek PNG card must disappear immediately"
 );

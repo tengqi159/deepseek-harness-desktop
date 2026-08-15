@@ -62,7 +62,7 @@ Do not relax the version check merely to start against an untested release. Upda
 The native wrapper and upstream runtime have independent versions. Release notes should always show both, for example:
 
 ```text
-Companion: 1.6.1-source-preview
+Companion: 1.6.9-source-preview
 Compatible upstream: @deepseek-ai/dsh 0.1.0-rc.6
 ```
 
