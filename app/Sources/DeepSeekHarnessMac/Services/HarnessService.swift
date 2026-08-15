@@ -229,9 +229,61 @@ final class HarnessService: ObservableObject {
         state = .failed("本地页面加载失败：\(message)")
     }
 
+    func currentHostRouteMatches(providerID: String, modelID: String) async -> Bool {
+        guard case .ready(let baseURL) = state,
+              Self.isBoundedRouteComponent(providerID, maximum: 256),
+              Self.isBoundedRouteComponent(modelID, maximum: 512),
+              let endpoint = URL(string: "api/host.describe", relativeTo: baseURL) else {
+            return false
+        }
+
+        let rpcID = "mac-app-model-route-\(UUID().uuidString)"
+        let payload: [String: Any] = [
+            "type": "client-request",
+            "rpcId": rpcID,
+            "method": "host.describe",
+            "payload": [:] as [String: Any]
+        ]
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 1.5
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  http.statusCode == 200,
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  json["type"] as? String == "server-response",
+                  json["rpcId"] as? String == rpcID,
+                  let result = json["result"] as? [String: Any],
+                  result["ok"] as? Bool == true,
+                  let value = result["value"] as? [String: Any],
+                  let cwd = value["cwd"] as? String,
+                  URL(fileURLWithPath: cwd).standardizedFileURL == expectedWorkingDirectory,
+                  value["provider"] as? String == providerID,
+                  value["model"] as? String == modelID,
+                  case .ready(let currentURL) = state,
+                  currentURL == baseURL else {
+                return false
+            }
+            return true
+        } catch {
+            return false
+        }
+    }
+
     private var isFailed: Bool {
         if case .failed = state { return true }
         return false
+    }
+
+    private static func isBoundedRouteComponent(_ value: String, maximum: Int) -> Bool {
+        !value.isEmpty
+            && value.count <= maximum
+            && !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
     }
 
     private func launch(runtime: HarnessRuntime) throws {

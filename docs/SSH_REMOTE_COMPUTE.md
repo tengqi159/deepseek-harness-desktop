@@ -1,6 +1,6 @@
 # SSH Remote Compute
 
-DeepSeek Harness Desktop 1.6.0 adds a narrow, explicit SSH workflow for research servers. It is designed for jobs such as checking GPU availability, launching training, following logs, and moving selected artifacts between the Mac and one remote workspace.
+The 1.6.x source preview of DeepSeek Harness Desktop includes a narrow, explicit SSH workflow for research servers. It is designed for jobs such as checking GPU availability, launching training, following logs, and moving selected artifacts between the Mac and one remote workspace.
 
 It is a clean-room companion feature built on the system OpenSSH client. It is not the upstream Harness shell moved to another machine, and it is not equivalent to Codex remote projects or a general remote desktop.
 
@@ -39,7 +39,7 @@ The native selection record contains a UUID, selection and expiry times, host al
 
 Every bridge action reloads that record, reruns `ssh -G`, compares the resolved tuple, and then pins hostname, user, and port on the OpenSSH command line. A changed or expired selection fails closed. The bridge does not silently fall back to another host with the same alias.
 
-Background jobs also record their command launcher, PID, process-group ID, Linux `/proc` start time, state, and stdout/stderr under `<workspace>/.harnessmate/jobs/<id>/`. Status and cancellation recheck the process identity before acting, which avoids treating a reused PID as the original training job. These remote records survive app disconnects, are not automatically deleted in 1.6.0, and are not redacted at rest; only bounded results returned to Harness receive local best-effort redaction.
+Background jobs also record their command launcher, PID, process-group ID, Linux `/proc` start time, state, and stdout/stderr under `<workspace>/.harnessmate/jobs/<id>/`. Status and cancellation recheck the process identity before acting, which avoids treating a reused PID as the original training job. These remote records survive app disconnects, are not automatically deleted in this source preview, and are not redacted at rest; only bounded results returned to Harness receive local best-effort redaction.
 
 ## File boundary
 
@@ -54,7 +54,7 @@ Transfers stay under the selected workspace:
 
 These checks reduce accidental path escape. They do not protect against a malicious remote account that controls its own kernel, OpenSSH server, or standard utilities.
 
-## Supported in 1.6.0
+## Supported in the 1.6.x source preview
 
 - macOS system OpenSSH
 - explicit top-level aliases from `~/.ssh/config`
@@ -90,4 +90,4 @@ The deterministic SSH test suite uses a temporary fake `ssh` executable and expl
 
 Those tests do not prove that a particular real cluster accepts the selected account or provides the expected Linux tools. Make the first real connection to a non-sensitive test workspace, inspect the resolved endpoint, and start with a read-only request.
 
-For comparison, Codex documents a broader remote-project design in [Remote connections](https://learn.chatgpt.com/docs/remote-connections). DeepSeek Harness Desktop 1.6.0 intentionally implements the smaller workflow described above.
+For comparison, Codex documents a broader remote-project design in [Remote connections](https://learn.chatgpt.com/docs/remote-connections). DeepSeek Harness Desktop intentionally implements the smaller workflow described above.

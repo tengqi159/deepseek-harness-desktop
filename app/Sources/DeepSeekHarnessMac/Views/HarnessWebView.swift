@@ -9,8 +9,10 @@ struct HarnessWebView: NSViewRepresentable {
     let reloadToken: Int
     let nativeAttachmentPayloads: [NativeAttachmentPayload]
     let supportsDirectImageInput: (String, String) -> Bool
+    let currentHostRouteMatches: (String, String) async -> Bool
     let onFileDragStateChanged: (Bool) -> Void
     let onFileURLsDropped: ([URL], String?) -> Void
+    let onImageDataPasted: (Data, String, String?) -> Void
     let onNativeAttachmentLifecycle: (NativeAttachmentLifecycleEvent) -> Void
     let onFailure: (String) -> Void
 
@@ -20,6 +22,7 @@ struct HarnessWebView: NSViewRepresentable {
             reloadToken: reloadToken,
             allowedOrigin: url,
             supportsDirectImageInput: supportsDirectImageInput,
+            currentHostRouteMatches: currentHostRouteMatches,
             onNativeAttachmentLifecycle: onNativeAttachmentLifecycle
         )
     }
@@ -46,6 +49,7 @@ struct HarnessWebView: NSViewRepresentable {
         let webView = DropAwareWKWebView(frame: .zero, configuration: configuration)
         webView.onNativeFileDragStateChanged = onFileDragStateChanged
         webView.onNativeFileURLsDropped = onFileURLsDropped
+        webView.onNativeImageDataPasted = onImageDataPasted
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         webView.load(URLRequest(url: url))
@@ -55,15 +59,17 @@ struct HarnessWebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.allowedOrigin = url
         context.coordinator.supportsDirectImageInput = supportsDirectImageInput
+        context.coordinator.currentHostRouteMatches = currentHostRouteMatches
         context.coordinator.pendingAttachmentPayloads = nativeAttachmentPayloads
 
         if let dropAwareWebView = webView as? DropAwareWKWebView {
             dropAwareWebView.onNativeFileDragStateChanged = onFileDragStateChanged
             dropAwareWebView.onNativeFileURLsDropped = onFileURLsDropped
+            dropAwareWebView.onNativeImageDataPasted = onImageDataPasted
         }
 
-        if webView.url?.absoluteString != url.absoluteString,
-           !webView.isLoading {
+        if !webView.isLoading,
+           webView.url.map({ !Self.isSameHarnessOrigin($0, as: url) }) ?? true {
             webView.load(URLRequest(url: url))
         }
 
@@ -75,7 +81,15 @@ struct HarnessWebView: NSViewRepresentable {
         context.coordinator.dispatchPendingAttachmentsIfPossible(to: webView)
     }
 
+    static func isSameHarnessOrigin(_ candidate: URL, as origin: URL) -> Bool {
+        candidate.scheme?.lowercased() == "http"
+            && candidate.scheme?.caseInsensitiveCompare(origin.scheme ?? "") == .orderedSame
+            && candidate.host?.caseInsensitiveCompare(origin.host ?? "") == .orderedSame
+            && candidate.port == origin.port
+    }
+
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.cancelModelRouteValidation()
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: Coordinator.modelRouteMessageName
         )
@@ -105,6 +119,7 @@ struct HarnessWebView: NSViewRepresentable {
         var reloadToken: Int
         var allowedOrigin: URL
         var supportsDirectImageInput: (String, String) -> Bool
+        var currentHostRouteMatches: (String, String) async -> Bool
         var pendingAttachmentPayloads: [NativeAttachmentPayload] = []
         private let onNativeAttachmentLifecycle: (NativeAttachmentLifecycleEvent) -> Void
         private var dispatchedAttachmentRevisions = Set<Int>()
@@ -112,18 +127,21 @@ struct HarnessWebView: NSViewRepresentable {
         private var isDispatchingAttachments = false
         private var pageGeneration = 0
         private var modelRouteValidationGeneration = 0
+        private var modelRouteValidationTask: Task<Void, Never>?
 
         init(
             onFailure: @escaping (String) -> Void,
             reloadToken: Int,
             allowedOrigin: URL,
             supportsDirectImageInput: @escaping (String, String) -> Bool,
+            currentHostRouteMatches: @escaping (String, String) async -> Bool,
             onNativeAttachmentLifecycle: @escaping (NativeAttachmentLifecycleEvent) -> Void
         ) {
             self.onFailure = onFailure
             self.reloadToken = reloadToken
             self.allowedOrigin = allowedOrigin
             self.supportsDirectImageInput = supportsDirectImageInput
+            self.currentHostRouteMatches = currentHostRouteMatches
             self.onNativeAttachmentLifecycle = onNativeAttachmentLifecycle
         }
 
@@ -155,6 +173,8 @@ struct HarnessWebView: NSViewRepresentable {
             // This prevents a late image-capable route from another conversation
             // from leaking into a text-only DeepSeek draft.
             modelRouteValidationGeneration += 1
+            modelRouteValidationTask?.cancel()
+            modelRouteValidationTask = nil
             let validationGeneration = modelRouteValidationGeneration
             let validationPageGeneration = pageGeneration
             webView.allowsUpstreamImageDrops = false
@@ -197,11 +217,30 @@ struct HarnessWebView: NSViewRepresentable {
                     webView.allowsUpstreamImageDrops = false
                     return
                 }
-                webView.allowsUpstreamImageDrops = self.supportsDirectImageInput(
-                    providerID,
-                    modelID
-                )
+                self.modelRouteValidationTask = Task { @MainActor [weak self, weak webView] in
+                    guard let self, let webView else { return }
+                    let matches = await self.currentHostRouteMatches(providerID, modelID)
+                    guard !Task.isCancelled,
+                          self.pageGeneration == validationPageGeneration,
+                          self.modelRouteValidationGeneration == validationGeneration else {
+                        return
+                    }
+                    guard matches else {
+                        webView.allowsUpstreamImageDrops = false
+                        return
+                    }
+                    webView.allowsUpstreamImageDrops = self.supportsDirectImageInput(
+                        providerID,
+                        modelID
+                    )
+                }
             }
+        }
+
+        func cancelModelRouteValidation() {
+            modelRouteValidationGeneration += 1
+            modelRouteValidationTask?.cancel()
+            modelRouteValidationTask = nil
         }
 
         private func handleAttachmentLifecycle(_ body: [String: Any]) {
@@ -309,7 +348,7 @@ struct HarnessWebView: NSViewRepresentable {
                 return
             }
 
-            if Self.isSameHarnessOrigin(destination, as: allowedOrigin) {
+            if HarnessWebView.isSameHarnessOrigin(destination, as: allowedOrigin) {
                 decisionHandler(.allow)
                 return
             }
@@ -332,7 +371,7 @@ struct HarnessWebView: NSViewRepresentable {
             didStartProvisionalNavigation navigation: WKNavigation!
         ) {
             (webView as? DropAwareWKWebView)?.allowsUpstreamImageDrops = false
-            modelRouteValidationGeneration += 1
+            cancelModelRouteValidation()
             dispatchedAttachmentRevisions.removeAll()
             attachmentDispatchFailureCounts.removeAll()
             isDispatchingAttachments = false
@@ -355,13 +394,6 @@ struct HarnessWebView: NSViewRepresentable {
             onFailure(error.localizedDescription)
         }
 
-        private static func isSameHarnessOrigin(_ url: URL, as origin: URL) -> Bool {
-            url.scheme?.lowercased() == "http"
-                && url.scheme?.caseInsensitiveCompare(origin.scheme ?? "") == .orderedSame
-                && url.host?.caseInsensitiveCompare(origin.host ?? "") == .orderedSame
-                && url.port == origin.port
-        }
-
         func dispatchPendingAttachmentsIfPossible(to webView: WKWebView) {
             guard !isDispatchingAttachments,
                   let payload = pendingAttachmentPayloads.first(where: {
@@ -369,7 +401,7 @@ struct HarnessWebView: NSViewRepresentable {
                   }),
                   !webView.isLoading,
                   let currentURL = webView.url,
-                  Self.isSameHarnessOrigin(currentURL, as: allowedOrigin) else {
+                  HarnessWebView.isSameHarnessOrigin(currentURL, as: allowedOrigin) else {
                 return
             }
 
@@ -445,10 +477,12 @@ struct HarnessWebView: NSViewRepresentable {
 private final class DropAwareWKWebView: WKWebView {
     var onNativeFileDragStateChanged: ((Bool) -> Void)?
     var onNativeFileURLsDropped: (([URL], String?) -> Void)?
+    var onNativeImageDataPasted: ((Data, String, String?) -> Void)?
     var allowsUpstreamImageDrops = false
 
     private var isHandlingNativeFileDrag = false
     private var consumedCurrentNativeDrag = false
+    private var localPasteEventMonitor: Any?
     private static let upstreamImageExtensions = Set(["png", "jpg", "jpeg", "webp", "gif"])
     private static let upstreamImageTypes = Set([
         "public.png",
@@ -470,6 +504,39 @@ private final class DropAwareWKWebView: WKWebView {
         super.init(coder: coder)
         let types = Set(registeredDraggedTypes).union([.fileURL])
         registerForDraggedTypes(Array(types))
+    }
+
+    deinit {
+        if let localPasteEventMonitor {
+            NSEvent.removeMonitor(localPasteEventMonitor)
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let localPasteEventMonitor {
+            NSEvent.removeMonitor(localPasteEventMonitor)
+            self.localPasteEventMonitor = nil
+        }
+        guard window != nil else { return }
+        localPasteEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
+            [weak self] event in
+            guard let self,
+                  event.window === self.window,
+                  self.ownsCurrentFirstResponder(),
+                  self.isCommandVPasteEvent(event),
+                  self.handleNativePasteboardIfNeeded(NSPasteboard.general) else {
+                return event
+            }
+            return nil
+        }
+    }
+
+    private func ownsCurrentFirstResponder() -> Bool {
+        guard let firstResponder = window?.firstResponder else { return false }
+        if firstResponder === self { return true }
+        guard let firstResponderView = firstResponder as? NSView else { return false }
+        return firstResponderView.isDescendant(of: self)
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -539,8 +606,62 @@ private final class DropAwareWKWebView: WKWebView {
         super.concludeDragOperation(sender)
     }
 
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard isCommandVPasteEvent(event),
+              event.window === window,
+              ownsCurrentFirstResponder() else {
+            return super.performKeyEquivalent(with: event)
+        }
+        if handleNativePasteboardIfNeeded(NSPasteboard.general) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    private func isCommandVPasteEvent(_ event: NSEvent) -> Bool {
+        let normalizedModifiers = event.modifierFlags
+            .intersection(.deviceIndependentFlagsMask)
+            .subtracting(.capsLock)
+        return event.type == .keyDown
+            && normalizedModifiers == .command
+            && event.charactersIgnoringModifiers?.lowercased() == "v"
+    }
+
+    private func handleNativePasteboardIfNeeded(_ pasteboard: NSPasteboard) -> Bool {
+        if Self.containsFileURLRepresentation(pasteboard) {
+            let urls = Self.fileURLs(from: pasteboard)
+            guard !urls.isEmpty else {
+                return false
+            }
+            guard shouldHandleNatively(urls) else {
+                return false
+            }
+            resolveNativeAttachmentSession { [weak self] sessionID in
+                self?.onNativeFileURLsDropped?(urls, sessionID)
+            }
+            return true
+        }
+
+        if !allowsUpstreamImageDrops,
+           let pastedImage = Self.imageData(from: pasteboard) {
+            resolveNativeAttachmentSession { [weak self] sessionID in
+                self?.onNativeImageDataPasted?(
+                    pastedImage.data,
+                    pastedImage.fileExtension,
+                    sessionID
+                )
+            }
+            return true
+        }
+        return false
+    }
+
     private func shouldHandleNatively(_ sender: NSDraggingInfo) -> Bool {
         let urls = Self.fileURLs(from: sender.draggingPasteboard)
+        return shouldHandleNatively(urls)
+    }
+
+    private func shouldHandleNatively(_ urls: [URL]) -> Bool {
         guard !urls.isEmpty else { return false }
         guard allowsUpstreamImageDrops,
               urls.count <= Self.maximumUpstreamImagesPerMessage else {
@@ -557,6 +678,35 @@ private final class DropAwareWKWebView: WKWebView {
             totalBytes = nextTotal
         }
         return false
+    }
+
+    private static func containsFileURLRepresentation(_ pasteboard: NSPasteboard) -> Bool {
+        let legacyFilenames = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+        return pasteboard.availableType(from: [.fileURL, legacyFilenames]) != nil
+    }
+
+    private static func imageData(
+        from pasteboard: NSPasteboard
+    ) -> (data: Data, fileExtension: String)? {
+        let candidates: [(NSPasteboard.PasteboardType, String, Set<String>)] = [
+            (.png, "png", ["public.png"]),
+            (NSPasteboard.PasteboardType("public.jpeg"), "jpg", ["public.jpeg"]),
+            (NSPasteboard.PasteboardType("com.compuserve.gif"), "gif", ["com.compuserve.gif"]),
+            (.tiff, "tiff", ["public.tiff"])
+        ]
+        for (pasteboardType, fileExtension, acceptedTypes) in candidates {
+            guard let data = pasteboard.data(forType: pasteboardType),
+                  !data.isEmpty,
+                  Int64(data.count) <= ArtifactStore.maximumImportBytes,
+                  let source = CGImageSourceCreateWithData(data as CFData, nil),
+                  CGImageSourceGetCount(source) > 0,
+                  let actualType = CGImageSourceGetType(source) as String?,
+                  acceptedTypes.contains(actualType) else {
+                continue
+            }
+            return (data, fileExtension)
+        }
+        return nil
     }
 
     private func resolveNativeAttachmentSession(

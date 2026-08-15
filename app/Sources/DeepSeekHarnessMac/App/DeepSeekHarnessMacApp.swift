@@ -43,7 +43,7 @@ struct DeepSeekHarnessMacApp: App {
 
                 Divider()
 
-                Button("导入研究文件…") {
+                Button("导入到研究文件库…") {
                     artifactStore.importFiles()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])

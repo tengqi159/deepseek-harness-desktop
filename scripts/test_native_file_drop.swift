@@ -78,7 +78,12 @@ struct NativeFileDropQA {
         let error = await MainActor.run { store.dropError }
         guard let payload else { throw QAFailure.message("no native attachment payload") }
 
-        try require(payload.revision == 1, "unexpected payload revision")
+        let firstRevision = payload.revision
+        try require(firstRevision >= 1, "unexpected payload revision")
+        try require(
+            firstRevision < ArtifactStore.maximumJavaScriptSafeInteger,
+            "payload revision is not JavaScript-safe"
+        )
         try require(payload.sessionID == "session-A", "drop-time session identity was not preserved")
         try require(payload.deliveryState == .pending, "new native payload must begin pending")
         try require(payload.attachments.count == 5, "expected five successful unique files")
@@ -172,7 +177,10 @@ struct NativeFileDropQA {
         }
         let queuedPayloads = await MainActor.run { store.nativeAttachmentPayloads }
         try require(queuedPayloads.count == 2, "consecutive drop payloads were not retained as FIFO")
-        try require(queuedPayloads.map(\.revision) == [1, 2], "FIFO revisions are out of order")
+        try require(
+            queuedPayloads.map(\.revision) == [firstRevision, firstRevision + 1],
+            "FIFO revisions are out of order"
+        )
         try require(queuedPayloads.map(\.sessionID) == ["session-A", "session-B"], "drop-time sessions drifted")
 
         let remainingFirstIDs = queuedPayloads[0].attachments.map(\.id)
@@ -180,7 +188,7 @@ struct NativeFileDropQA {
             store.handleNativeAttachmentLifecycle(
                 NativeAttachmentLifecycleEvent(
                     kind: .removed,
-                    revision: 1,
+                    revision: firstRevision,
                     sessionID: "session-A",
                     attachmentIDs: remainingFirstIDs
                 )
@@ -188,14 +196,53 @@ struct NativeFileDropQA {
             store.handleNativeAttachmentLifecycle(
                 NativeAttachmentLifecycleEvent(
                     kind: .accepted,
-                    revision: 1,
+                    revision: firstRevision,
                     sessionID: "session-A",
                     attachmentIDs: firstAttachmentIDs
                 )
             )
         }
         let afterRemoveWins = await MainActor.run { store.nativeAttachmentPayloads }
-        try require(afterRemoveWins.map(\.revision) == [2], "remove did not win over a late lifecycle ACK")
+        try require(
+            afterRemoveWins.map(\.revision) == [firstRevision + 1],
+            "remove did not win over a late lifecycle ACK"
+        )
+
+        let pastedPNG = Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )!
+        let pasteStore = await MainActor.run { ArtifactStore() }
+        await MainActor.run {
+            pasteStore.importPastedImageData(
+                pastedPNG,
+                fileExtension: "png",
+                targetSessionID: "paste-session"
+            )
+        }
+        let pasteDeadline = Date().addingTimeInterval(15)
+        while await MainActor.run(body: { pasteStore.isImportingDroppedFiles }) {
+            if Date() > pasteDeadline { throw QAFailure.message("clipboard image import timed out") }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        guard let pastedPayload = await MainActor.run(body: {
+            pasteStore.nativeAttachmentPayloads.last
+        }) else {
+            throw QAFailure.message("clipboard image did not create an attachment payload")
+        }
+        try require(pastedPayload.sessionID == "paste-session", "clipboard image lost its session")
+        try require(pastedPayload.attachments.count == 1, "clipboard image was imported more than once")
+        try require(
+            pastedPayload.attachments[0].displayName == "pasted-image.png",
+            "clipboard image filename changed"
+        )
+        let pastedFile = ArtifactStore.rootURL.appendingPathComponent(
+            pastedPayload.attachments[0].relativePath
+        )
+        let pastedFileData = try Data(contentsOf: pastedFile)
+        try require(pastedFileData == pastedPNG, "clipboard image bytes changed")
+        let pastedMode = try fileManager.attributesOfItem(atPath: pastedFile.path)[.posixPermissions]
+            as? NSNumber
+        try require(pastedMode?.intValue == 0o600, "clipboard image permissions are not 0600")
 
         let limitStore = await MainActor.run { ArtifactStore() }
         var limitSources: [URL] = []
@@ -217,6 +264,9 @@ struct NativeFileDropQA {
         let fullPendingQueue = await MainActor.run { limitStore.nativeAttachmentPayloads }
         try require(fullPendingQueue.count == 32, "pending payload queue did not reach its exact bound")
         try require(fullPendingQueue.allSatisfy { $0.deliveryState == .pending }, "pending-limit fixture drifted")
+        guard let limitFirstRevision = fullPendingQueue.first?.revision else {
+            throw QAFailure.message("pending-limit queue lost its first revision")
+        }
 
         await MainActor.run {
             limitStore.importDroppedFiles([limitSources[32]], targetSessionID: "limit-session")
@@ -226,13 +276,16 @@ struct NativeFileDropQA {
         let rejectedRevisions = await MainActor.run { limitStore.nativeAttachmentPayloads.map(\.revision) }
         try require(!rejectedImporting, "a 33rd unresolved payload unexpectedly started importing")
         try require(rejectedError?.contains("32 批") == true, "pending-limit rejection was not reported")
-        try require(rejectedRevisions == Array(1...32), "a rejected 33rd payload evicted an unresolved predecessor")
+        try require(
+            rejectedRevisions == Array(limitFirstRevision...(limitFirstRevision + 31)),
+            "a rejected 33rd payload evicted an unresolved predecessor"
+        )
 
         await MainActor.run {
             limitStore.handleNativeAttachmentLifecycle(
                 NativeAttachmentLifecycleEvent(
                     kind: .accepted,
-                    revision: 1,
+                    revision: limitFirstRevision,
                     sessionID: "limit-session",
                     attachmentIDs: fullPendingQueue[0].attachments.map(\.id)
                 )
@@ -246,8 +299,12 @@ struct NativeFileDropQA {
         }
         let afterAcceptedTrim = await MainActor.run { limitStore.nativeAttachmentPayloads }
         try require(afterAcceptedTrim.count == 32, "accepted replay history was not bounded")
-        try require(afterAcceptedTrim.map(\.revision) == Array(2...33), "pending payload was evicted before accepted history")
+        try require(
+            afterAcceptedTrim.map(\.revision)
+                == Array((limitFirstRevision + 1)...(limitFirstRevision + 32)),
+            "pending payload was evicted before accepted history"
+        )
 
-        print("NATIVE_FILE_DROP_QA_OK attachments=6 partial_failures=3 fifo_batches=2")
+        print("NATIVE_FILE_DROP_QA_OK attachments=7 partial_failures=3 fifo_batches=2 clipboard_image=1")
     }
 }
