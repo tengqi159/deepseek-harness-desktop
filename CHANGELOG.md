@@ -12,6 +12,13 @@ This project is an unofficial companion and versions its native wrapper independ
 - Clean-machine installation and Gatekeeper acceptance testing.
 - Broader architecture qualification beyond the currently tested Apple Silicon build.
 
+## [1.6.1-source-preview] - 2026-08-15
+
+### Fixed
+
+- Bound direct-image routing to the conversation that published the model capability state. A delayed Kimi route from another conversation can no longer send a DeepSeek Pro/Flash image into the upstream image block and trigger the misleading “current model does not support images” failure.
+- Added a real WKWebView regression for cross-conversation route races while preserving same-conversation Kimi image pass-through and DeepSeek managed-image fallback.
+
 ## [1.6.0-source-preview] - 2026-08-15
 
 ### Added
@@ -80,7 +87,8 @@ This project is an unofficial companion and versions its native wrapper independ
 - The current local `.app` is Apple Silicon (`arm64`), requires macOS 14 or later, and depends on a separately installed pinned `dsh` runtime.
 - No app ZIP is published with this preview: current development builds are not signed with an Apple Developer ID and are not notarized by Apple.
 
-[Unreleased]: https://github.com/tengqi159/deepseek-harness-desktop/compare/v1.6.0-source-preview...HEAD
+[Unreleased]: https://github.com/tengqi159/deepseek-harness-desktop/compare/v1.6.1-source-preview...HEAD
+[1.6.1-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.6.1-source-preview
 [1.6.0-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.6.0-source-preview
 [1.5.0-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.5.0-source-preview
 [1.4.1-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.4.1-source-preview

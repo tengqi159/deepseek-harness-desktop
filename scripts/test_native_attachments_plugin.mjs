@@ -842,4 +842,110 @@ assert.deepEqual(
 );
 for (const cleanup of effects.splice(0).reverse()) cleanup();
 
-console.log("NATIVE_ATTACHMENTS_PLUGIN_OK");
+// Screenshot regression: a pure image routed through the DeepSeek text-only
+// managed path must create a card in the drop-time conversation, even if the
+// user switches conversations before the delivery is consumed. Deleting that
+// card must survive a page/plugin refresh without restoring draft text or the
+// card. This keeps the visible image case independent from the mixed PDF/PNG/MD
+// regression above.
+const deepSeekFlashImagePath = `Inbox/${uuid1}/deepseek-flash-drop.png`;
+const deepSeekFlashImage = attachment(deepSeekFlashImagePath, { kind: "图片" });
+const deepSeekFlashPayload = payload(41, [deepSeekFlashImage]);
+const deepSeekFlashUserDraft = "DeepSeek 图片拖入回归";
+draft = deepSeekFlashUserDraft;
+acceptDraftWrites = true;
+currentSessionId = "session-2";
+const sessionTwoDraftBeforeImageDelivery = draftB;
+const lifecycleCountBeforeImageDelivery = lifecycleDetails().length;
+fakeWindow.__deepSeekHarnessNativeAttachmentQueue.push({
+  payload: deepSeekFlashPayload,
+  replay: false
+});
+plugin.apply(ctx);
+assert.deepEqual(fakeWindow.__deepSeekHarnessNativeAttachmentQueue, []);
+const deepSeekFlashLine = plugin.managedReferenceLine(deepSeekFlashImagePath, 41);
+assert.equal(
+  draft,
+  `${deepSeekFlashUserDraft}\n${deepSeekFlashLine}`,
+  "a DeepSeek PNG must become an exact managed reference in its drop-time session"
+);
+assert.equal(
+  draftB,
+  sessionTwoDraftBeforeImageDelivery,
+  "switching conversations must not redirect a DeepSeek image drop"
+);
+assert.deepEqual(
+  lifecycleDetails().slice(lifecycleCountBeforeImageDelivery),
+  [{
+    version: 1,
+    type: "accepted",
+    revision: 41,
+    sessionId: "session-1",
+    attachmentIds: [deepSeekFlashImagePath]
+  }],
+  "the managed DeepSeek image must acknowledge its exact drop-time session"
+);
+const deepSeekFlashSource = registered.specification.inject("session-1").source;
+const deepSeekFlashRendered = registered.component({
+  input: { draft },
+  source: deepSeekFlashSource
+});
+const deepSeekFlashRemoveButtons = collectRenderedElements(
+  deepSeekFlashRendered,
+  (element) => element.type === "button" && typeof element.props?.onClick === "function"
+);
+assert.equal(deepSeekFlashRemoveButtons.length, 1, "a managed DeepSeek PNG must expose one remove action");
+assert.match(JSON.stringify(deepSeekFlashRendered), /deepseek-flash-drop\.png/u);
+deepSeekFlashRemoveButtons[0].props.onClick();
+assert.equal(draft, deepSeekFlashUserDraft, "removing the PNG card must preserve user text");
+assert.equal(
+  registered.component({ input: { draft }, source: deepSeekFlashSource }),
+  null,
+  "the removed DeepSeek PNG card must disappear immediately"
+);
+assert.deepEqual(
+  lifecycleDetails().at(-1),
+  {
+    version: 1,
+    type: "removed",
+    revision: 41,
+    sessionId: "session-1",
+    attachmentIds: [deepSeekFlashImagePath]
+  }
+);
+for (const cleanup of effects.splice(0).reverse()) cleanup();
+
+fakeWindow.__deepSeekHarnessNativeAttachmentQueue.push({
+  payload: deepSeekFlashPayload,
+  replay: true
+});
+const writesBeforeDeepSeekImageRefresh = setDraftCalls;
+const lifecycleCountBeforeDeepSeekImageRefresh = lifecycleDetails().length;
+plugin.apply(ctx);
+assert.deepEqual(fakeWindow.__deepSeekHarnessNativeAttachmentQueue, []);
+assert.equal(draft, deepSeekFlashUserDraft, "refresh resurrected a deleted DeepSeek PNG reference");
+assert.equal(
+  setDraftCalls,
+  writesBeforeDeepSeekImageRefresh,
+  "refresh must not rewrite the draft after deleting a managed DeepSeek PNG"
+);
+const deepSeekFlashRefreshSource = registered.specification.inject("session-1").source;
+assert.equal(
+  registered.component({ input: { draft }, source: deepSeekFlashRefreshSource }),
+  null,
+  "refresh resurrected a deleted DeepSeek PNG card"
+);
+assert.deepEqual(
+  lifecycleDetails().slice(lifecycleCountBeforeDeepSeekImageRefresh),
+  [{
+    version: 1,
+    type: "removed",
+    revision: 41,
+    sessionId: "session-1",
+    attachmentIds: [deepSeekFlashImagePath]
+  }],
+  "refresh must reaffirm the PNG tombstone without a new acceptance ACK"
+);
+for (const cleanup of effects.splice(0).reverse()) cleanup();
+
+console.log("NATIVE_ATTACHMENTS_PLUGIN_OK image_card_session_delete_refresh=1");
