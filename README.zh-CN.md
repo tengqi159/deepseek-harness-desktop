@@ -22,11 +22,21 @@
 
 DeepSeek Harness Desktop 把上游 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 运行时（`@deepseek-ai/dsh`）装进一个原生 Mac 应用。对话、模型、插件都还是上游的；桌面客户端只补 Mac 上干活缺的那几样：
 
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="DeepSeek Harness Desktop 在你的 Mac 与上游 Harness 之间的位置" width="860">
+</p>
+
 - 论文、PDF、Office、代码、图片，从 Finder 直接拖进对话，原文件不动。
 - Appshot（`⌘⇧⌥2`）：截最前窗口，秘密先打码再预览，确认才保存。
 - Computer Use：附加一个 App，用辅助功能 + 本地 OCR 操作；登录、钥匙串、密码框一律拦住。
 - Linux 研究服务器的 SSH 远程计算，只走公钥。
 - 图片只在提供方/模型确认支持时才发给模型，拿不准就回退，不装懂。
+
+<p align="center">
+  <img src="docs/images/app-control.png" alt="为 DeepSeek Harness Desktop 附加一个 Mac App 并进行受限操作" width="920">
+</p>
+
+<p align="center"><sub>附加一个 App，客户端只在它内部操作。基于真实产品界面制作的脱敏演示，不含用户文件、账号或 API key。</sub></p>
 
 > [!NOTE]
 > 非官方社区项目，目前只有源码预览版，还没有公证过的二进制——见[分发说明](docs/DISTRIBUTION.md)。

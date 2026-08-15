@@ -22,11 +22,21 @@
 
 DeepSeek Harness Desktop wraps the upstream [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) runtime (`@deepseek-ai/dsh`) in a native Mac app. Conversations, models, and plugins stay upstream. The desktop client adds the parts that matter when the work lives on a Mac:
 
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="How DeepSeek Harness Desktop fits between your Mac and upstream Harness" width="860">
+</p>
+
 - Drag papers, PDFs, Office files, code, and images from Finder straight into the conversation. Originals stay untouched.
 - Appshot (`⌘⇧⌥2`): capture the frontmost window, secrets masked locally, preview before anything is saved.
 - Computer Use: attach one app and operate it with Accessibility + local OCR; login, Keychain, and password fields are blocked.
 - SSH remote compute for Linux research servers, public-key only.
 - Images go to the model only when that provider/model is verified to see images; otherwise the pipeline falls back honestly.
+
+<p align="center">
+  <img src="docs/images/app-control.png" alt="Attaching one Mac app for bounded Computer Use" width="920">
+</p>
+
+<p align="center"><sub>Attach one app and the client operates only within it. Sanitized product demo based on the real interface.</sub></p>
 
 > [!NOTE]
 > Unofficial community project, source preview only. No notarized binary yet — see [Distribution](docs/DISTRIBUTION.md).
