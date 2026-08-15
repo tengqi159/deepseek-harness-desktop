@@ -1,6 +1,6 @@
 # Privacy and data flow
 
-HarnessMate is designed as a local companion around a separately installed Harness runtime. “Local” does not mean that all conversation content stays on the Mac: prompts, selected extracts, approved attachments, and tool results can be sent by Harness to whichever model provider the user configures.
+DeepSeek Harness Desktop is designed as a local companion around a separately installed Harness runtime. “Local” does not mean that all conversation content stays on the Mac: prompts, selected extracts, approved attachments, and tool results can be sent by Harness to whichever model provider the user configures.
 
 This document describes the companion layer. The upstream Harness runtime, model providers, npm registry, linked websites, and macOS have their own behavior and policies.
 
@@ -62,11 +62,11 @@ The current control bridge is semantic Accessibility/OCR automation. It is not e
 
 SSH is off until the user chooses one concrete top-level alias from `~/.ssh/config` and one absolute remote workspace. The app stores an owner-only selection record containing a random selection ID, selection/expiry times, alias, resolved hostname, username, port, and workspace. It expires within 24 hours. It does not contain a password, private key, passphrase, authentication token, or copied SSH configuration.
 
-The bridge uses `/usr/bin/ssh` with strict host-key checking and non-interactive public-key authentication. Authentication is handled by OpenSSH and the user's existing `ssh-agent`; HarnessMate does not read private-key contents. The app passes `SSH_AUTH_SOCK` to its private Harness process so the specialized bridge can authenticate. The upstream Full-access shell in that same process can also invoke SSH, so the specialized bridge's confirmations are workflow controls rather than an unbypassable sandbox.
+The bridge uses `/usr/bin/ssh` with strict host-key checking and non-interactive public-key authentication. Authentication is handled by OpenSSH and the user's existing `ssh-agent`; DeepSeek Harness Desktop does not read private-key contents. The app passes `SSH_AUTH_SOCK` to its private Harness process so the specialized bridge can authenticate. The upstream Full-access shell in that same process can also invoke SSH, so the specialized bridge's confirmations are workflow controls rather than an unbypassable sandbox.
 
 Commands, file paths, server facts, logs, and transferred data are private server information. Bounded, best-effort-redacted tool results can enter the Harness conversation, local session history, and configured model-provider request; redaction cannot recognize every secret format. Uploaded files leave the Mac and are written under the selected remote workspace. Downloads leave the server and are published under `Artifacts/Downloads` on the Mac. Neither direction is secure erasure.
 
-Background jobs persist under `<workspace>/.harnessmate/jobs/<id>/`, including a generated script, PID/PGID/start-time identity, state, and stdout/stderr logs. A job can keep running after HarnessMate disconnects, and 1.6.0 does not automatically remove these server-side records. The remote files are not redacted at rest; only bounded tool results receive local best-effort redaction before returning to Harness. Do not put credentials directly in commands, generated scripts, or logs.
+Background jobs persist under `<workspace>/.harnessmate/jobs/<id>/`, including a generated script, PID/PGID/start-time identity, state, and stdout/stderr logs. A job can keep running after DeepSeek Harness Desktop disconnects, and 1.6.0 does not automatically remove these server-side records. The remote files are not redacted at rest; only bounded tool results receive local best-effort redaction before returning to Harness. Do not put credentials directly in commands, generated scripts, or logs.
 
 The source preview does not support password or MFA prompts, interactive TTY, jump hosts, SSH tunnels/forwarding, or automatic host-key acceptance. Full behavior and Linux requirements are documented in [SSH Remote Compute](SSH_REMOTE_COMPUTE.md).
 

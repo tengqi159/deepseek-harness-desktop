@@ -1,6 +1,6 @@
 # Security policy
 
-HarnessMate can read user-selected files, connect to one explicitly selected SSH workspace, and—only after the user grants macOS permissions—inspect or control one attached application. Security and privacy regressions are therefore treated as release-blocking issues.
+DeepSeek Harness Desktop can read user-selected files, connect to one explicitly selected SSH workspace, and—only after the user grants macOS permissions—inspect or control one attached application. Security and privacy regressions are therefore treated as release-blocking issues.
 
 ## Supported versions
 

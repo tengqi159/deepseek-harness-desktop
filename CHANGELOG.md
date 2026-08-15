@@ -80,7 +80,7 @@ This project is an unofficial companion and versions its native wrapper independ
 - The current local `.app` is Apple Silicon (`arm64`), requires macOS 14 or later, and depends on a separately installed pinned `dsh` runtime.
 - No app ZIP is published with this preview: current development builds are not signed with an Apple Developer ID and are not notarized by Apple.
 
-[Unreleased]: https://github.com/tengqi159/harness-mate/compare/v1.6.0-source-preview...HEAD
-[1.6.0-source-preview]: https://github.com/tengqi159/harness-mate/releases/tag/v1.6.0-source-preview
-[1.5.0-source-preview]: https://github.com/tengqi159/harness-mate/releases/tag/v1.5.0-source-preview
-[1.4.1-source-preview]: https://github.com/tengqi159/harness-mate/releases/tag/v1.4.1-source-preview
+[Unreleased]: https://github.com/tengqi159/deepseek-harness-desktop/compare/v1.6.0-source-preview...HEAD
+[1.6.0-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.6.0-source-preview
+[1.5.0-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.5.0-source-preview
+[1.4.1-source-preview]: https://github.com/tengqi159/deepseek-harness-desktop/releases/tag/v1.4.1-source-preview

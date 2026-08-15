@@ -136,7 +136,7 @@ elif "/bin/kill -" in command:
         print("unsafe cancellation identity check", file=sys.stderr); sys.exit(2)
     directory = root / "srv" / "project" / ".harnessmate" / "jobs" / job_id(command)
     (directory / "state").write_text("cancel_requested\n")
-elif "HARNESSMATE_UPLOAD_V1" in command:
+elif "DEEPSEEK_HARNESS_DESKTOP_UPLOAD_V1" in command:
     parent_match = re.search(r"parent_candidate='([^']+)'", command)
     name_match = re.search(r"target_name='([^']+)'", command)
     overwrite_match = re.search(r"overwrite=([01])", command)
@@ -154,7 +154,7 @@ elif "HARNESSMATE_UPLOAD_V1" in command:
         sys.exit(1)
     target.write_bytes(payload[:expected_size])
     print(f"uploaded_bytes={expected_size}")
-elif "HARNESSMATE_DOWNLOAD_V1" in command:
+elif "DEEPSEEK_HARNESS_DESKTOP_DOWNLOAD_V1" in command:
     candidate_match = re.search(r"(?m)^candidate='([^']+)'$", command)
     if not candidate_match:
         print("invalid download stream", file=sys.stderr); sys.exit(2)

@@ -2,7 +2,7 @@
 
 ## Unofficial community project
 
-HarnessMate — the DeepSeek Harness macOS companion — is an independent, unofficial community project. It is not affiliated with, maintained by, sponsored by, or endorsed by DeepSeek. “DeepSeek” and “DeepSeek Harness” are used only to identify compatibility with the upstream project. All related names, logos, and trademarks belong to their respective owners. This repository was previously named `deepseek-harness-macos`; the old GitHub URL now redirects here.
+DeepSeek Harness Desktop is an independent, unofficial community project. It is not affiliated with, maintained by, sponsored by, or endorsed by DeepSeek. “DeepSeek” and “DeepSeek Harness” are used only to identify compatibility with the upstream project. All related names, logos, and trademarks belong to their respective owners. This repository was previously named `harness-mate` and `deepseek-harness-macos`; the old GitHub URLs now redirect here.
 
 This repository uses an original companion-app icon. It does not grant any right to use DeepSeek branding or artwork.
 

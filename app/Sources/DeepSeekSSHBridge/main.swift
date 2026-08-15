@@ -707,7 +707,7 @@ private final class SSHBridge {
             let remoteTarget = selection.remoteWorkspace + "/" + remoteRelative
             let parent = (remoteTarget as NSString).deletingLastPathComponent
             let targetName = (remoteTarget as NSString).lastPathComponent
-            let commitToken = "HARNESSMATE-COMMIT-" + UUID().uuidString.lowercased()
+            let commitToken = "DEEPSEEK-HARNESS-DESKTOP-COMMIT-" + UUID().uuidString.lowercased()
             let uploadInput = ManagedInputFile(
                 url: localFile.url,
                 device: localFile.device,
@@ -718,7 +718,7 @@ private final class SSHBridge {
                 commitTrailer: Data((commitToken + "\n").utf8)
             )
             let upload = """
-            # HARNESSMATE_UPLOAD_V1
+            # DEEPSEEK_HARNESS_DESKTOP_UPLOAD_V1
             set -eu
             workspace_candidate=\(shellQuote(selection.remoteWorkspace))
             parent_candidate=\(shellQuote(parent))
@@ -783,7 +783,7 @@ private final class SSHBridge {
             let partial = directory.appendingPathComponent(filename + ".partial")
             let final = directory.appendingPathComponent(filename)
             let download = """
-            # HARNESSMATE_DOWNLOAD_V1
+            # DEEPSEEK_HARNESS_DESKTOP_DOWNLOAD_V1
             set -eu
             workspace_candidate=\(shellQuote(selection.remoteWorkspace))
             candidate=\(shellQuote(remotePath))

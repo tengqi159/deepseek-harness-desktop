@@ -1,6 +1,6 @@
 # SSH Remote Compute
 
-HarnessMate 1.6.0 adds a narrow, explicit SSH workflow for research servers. It is designed for jobs such as checking GPU availability, launching training, following logs, and moving selected artifacts between the Mac and one remote workspace.
+DeepSeek Harness Desktop 1.6.0 adds a narrow, explicit SSH workflow for research servers. It is designed for jobs such as checking GPU availability, launching training, following logs, and moving selected artifacts between the Mac and one remote workspace.
 
 It is a clean-room companion feature built on the system OpenSSH client. It is not the upstream Harness shell moved to another machine, and it is not equivalent to Codex remote projects or a general remote desktop.
 
@@ -9,10 +9,10 @@ It is a clean-room companion feature built on the system OpenSSH client. It is n
 1. Define a concrete, top-level host alias in `~/.ssh/config`.
 2. Choose **Remote Server** in the native toolbar.
 3. Select that alias and enter one absolute Linux workspace, such as `/srv/research/project`.
-4. HarnessMate resolves the alias with `ssh -G` and stores a private selection record for at most 24 hours. **Test Connection** is a separate user action; remote tools also revalidate the selection and connection when they run.
+4. DeepSeek Harness Desktop resolves the alias with `ssh -G` and stores a private selection record for at most 24 hours. **Test Connection** is a separate user action; remote tools also revalidate the selection and connection when they run.
 5. Ask naturally: “Check the GPUs,” “start this training,” or “follow the latest log.” The model can choose the registered remote tools when the task matches.
 
-HarnessMate does not automatically choose a server, accept a host key, enter a password, or open an interactive prompt.
+DeepSeek Harness Desktop does not automatically choose a server, accept a host key, enter a password, or open an interactive prompt.
 
 ## Available tools
 
@@ -75,7 +75,7 @@ Not supported:
 
 ## Privacy and secrets
 
-HarnessMate reads host configuration needed to resolve the selected alias, but it does not read, copy, log, or commit SSH private-key contents. Authentication remains inside OpenSSH and the user's existing agent. The repository contains no real/private server address, account, workspace, private key, API key, or networked SSH fixture; examples are synthetic.
+DeepSeek Harness Desktop reads host configuration needed to resolve the selected alias, but it does not read, copy, log, or commit SSH private-key contents. Authentication remains inside OpenSSH and the user's existing agent. The repository contains no real/private server address, account, workspace, private key, API key, or networked SSH fixture; examples are synthetic.
 
 Do not place credentials directly in remote commands. Command strings, selected paths, output, and logs can become part of the local session and configured model context. Use server-side secret stores or environment setup outside the conversation.
 
@@ -90,4 +90,4 @@ The deterministic SSH test suite uses a temporary fake `ssh` executable and expl
 
 Those tests do not prove that a particular real cluster accepts the selected account or provides the expected Linux tools. Make the first real connection to a non-sensitive test workspace, inspect the resolved endpoint, and start with a read-only request.
 
-For comparison, Codex documents a broader remote-project design in [Remote connections](https://learn.chatgpt.com/docs/remote-connections). HarnessMate 1.6.0 intentionally implements the smaller workflow described above.
+For comparison, Codex documents a broader remote-project design in [Remote connections](https://learn.chatgpt.com/docs/remote-connections). DeepSeek Harness Desktop 1.6.0 intentionally implements the smaller workflow described above.
