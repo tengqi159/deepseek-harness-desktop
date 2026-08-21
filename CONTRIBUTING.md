@@ -19,7 +19,7 @@ You will need:
 
 - Xcode Command Line Tools with Swift 5.10 or later;
 - Node.js 22 for the attachment-client test and the separately installed Harness runtime;
-- `@deepseek-ai/dsh@0.1.0-rc.6` when launching the full app;
+- `@deepseek-ai/dsh@0.1.1-rc.2` when launching the full app;
 - `uv`, or Python with ReportLab and Pillow, for the artifact generated-fixture test.
 - the macOS system OpenSSH client; SSH regression tests replace it with a local fake and must not contact a real host.
 

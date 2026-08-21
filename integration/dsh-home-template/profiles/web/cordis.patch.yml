@@ -1,1 +1,21 @@
-[]
+# Companion-owned default catalog for the Web profile. User settings remain a
+# higher-priority layer, so HarnessHomeInstaller also repairs the one exact
+# Vision catalog entry we ship below when it already exists in settings.yaml.
+#
+# Do not promote a whole provider to image-capable here. The adapter sends
+# native image blocks only for an exact model entry that declares `image`.
+- id: llm-deepseek
+  config:
+    models:
+      - id: deepseek-v4-flash
+        name: DeepSeek-V4-Flash
+        contextWindow: 1000000
+        inputModalities: [text]
+      - id: deepseek-v4-pro
+        name: DeepSeek-V4-Pro
+        contextWindow: 1000000
+        inputModalities: [text]
+      - id: deepseek-v4-flash-vision-exp
+        name: DeepSeek-V4-Flash Vision
+        contextWindow: 1000000
+        inputModalities: [text, image]

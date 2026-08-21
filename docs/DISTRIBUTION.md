@@ -4,7 +4,7 @@
 
 This repository currently publishes source code, not a generally installable Mac binary.
 
-The local app used during development is built for Apple Silicon (`arm64`), requires macOS 14 or later, and launches the separately installed, exactly pinned `@deepseek-ai/dsh@0.1.0-rc.6` runtime. Node.js and the upstream CLI are not embedded in the app bundle.
+The local app used during development is built for Apple Silicon (`arm64`), requires macOS 14 or later, and launches the separately installed, exactly pinned `@deepseek-ai/dsh@0.1.1-rc.2` runtime. Node.js and the upstream CLI are not embedded in the app bundle.
 
 The current development app is not signed with an Apple-issued Developer ID and has not been notarized by Apple. Gatekeeper can therefore reject it on another Mac. For that reason, the existing local ZIP is deliberately excluded from this repository and must not be attached to a public “stable” release.
 
@@ -22,7 +22,7 @@ Prerequisites:
 - the exact compatible upstream runtime:
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
+npm install -g @deepseek-ai/dsh@0.1.1-rc.2 --registry=https://registry.npmjs.org
 ```
 
 Build and package locally from the repository root:
@@ -31,7 +31,7 @@ Build and package locally from the repository root:
 ./scripts/build_and_run.sh package
 ```
 
-The default source-preview build uses ad-hoc signing suitable only for local development. `DSH_LOCAL_SIGNING=1` is an explicit opt-in that creates a self-signed identity in the helper-owned `DeepSeekHarnessMacCompanionLocalSigning-v1.keychain-db` and adds that keychain to the user's search list. The helper rejects path overrides and will manage an existing keychain only when its fixed ownership marker matches. This persistent identity can reduce repeated TCC entries during development, but it changes keychain state and is not suitable for distribution. Signing material, keychains, app bundles, and ZIPs are ignored by Git.
+The default source-preview build uses ad-hoc signing suitable only for local development. `DSH_LOCAL_SIGNING=1` is an explicit opt-in: it first reuses exactly one matching local development identity already visible in the user's keychain search list, without changing Keychain state. The helper rejects path overrides and fails closed for an incomplete helper-owned keychain rather than replacing it automatically. A persistent local identity can reduce repeated TCC entries during development, but it is not suitable for distribution. Signing material, keychains, app bundles, and ZIPs are ignored by Git.
 
 Before relying on a local build, run the regression suites documented in [CONTRIBUTING.md](../CONTRIBUTING.md) and verify the actual intended app/window/file state. macOS permissions are associated with code identity and the responsible process chain; a passing Terminal-launched fixture does not prove that an independently launched app has the same permissions.
 
@@ -62,8 +62,8 @@ Do not relax the version check merely to start against an untested release. Upda
 The native wrapper and upstream runtime have independent versions. Release notes should always show both, for example:
 
 ```text
-Companion: 1.6.9-source-preview
-Compatible upstream: @deepseek-ai/dsh 0.1.0-rc.6
+Companion: 1.7.1-source-preview (build 19)
+Compatible upstream: @deepseek-ai/dsh 0.1.1-rc.2
 ```
 
 Never label a source preview or an unnotarized development archive as a stable macOS release.

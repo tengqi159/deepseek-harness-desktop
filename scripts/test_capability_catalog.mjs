@@ -328,8 +328,8 @@ assert.deepEqual(manifest.dsh.client.inject, [
   "@deepseek-ai/dsh-client-ui-conversation"
 ]);
 assert.equal(manifest.exports["./client"], "./lib/client.js");
-assert.equal(manifest.peerDependencies["@deepseek-ai/dsh-client-ui-primitives"], "^0.1.0-rc.6");
-assert.equal(manifest.peerDependencies["@deepseek-ai/dsh-client-connection"], "^0.1.0-rc.6");
+assert.equal(manifest.peerDependencies["@deepseek-ai/dsh-client-ui-primitives"], "^0.1.1-rc.2");
+assert.equal(manifest.peerDependencies["@deepseek-ai/dsh-client-connection"], "^0.1.1-rc.2");
 
 const hostSource = fs.readFileSync(hostPath, "utf8");
 assert.match(hostSource, /function apply\(\) \{\}/u);

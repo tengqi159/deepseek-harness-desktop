@@ -50,6 +50,12 @@ jobs:
       - name: Test native attachment client boundary
         run: node scripts/test_native_attachments_plugin.mjs
 
+      - name: Test targeted DeepSeek Vision settings migration
+        run: scripts/test_settings_model_migration.sh
+
+      - name: Test exact DeepSeek Vision capability alignment
+        run: node scripts/test_model_capability_alignment.mjs
+
       - name: Test capability catalog semantics
         run: scripts/test_capability_catalog.sh
 

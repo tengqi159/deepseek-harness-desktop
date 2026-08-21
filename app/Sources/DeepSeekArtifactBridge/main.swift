@@ -1648,12 +1648,16 @@ private final class ArtifactBridge {
     private func conservativeCapabilityRegistry() -> [String: Any] {
         [
             "schemaVersion": 1,
-            "verifiedAt": "2026-08-14",
+            "verifiedAt": "2026-08-21",
             "providers": [
                 [
                     "id": "deepseek-official",
-                    "input": ["text": "supported", "image": "unsupported", "video": "unsupported"],
-                    "models": [["id": "deepseek-v4-pro", "input": ["text"]]]
+                    "input": ["text": "supported", "image": "supported", "video": "unsupported"],
+                    "models": [
+                        ["id": "deepseek-v4-flash", "input": ["text"]],
+                        ["id": "deepseek-v4-pro", "input": ["text"]],
+                        ["id": "deepseek-v4-flash-vision-exp", "input": ["text", "image"]]
+                    ]
                 ],
                 [
                     "id": "moonshotai-cn",

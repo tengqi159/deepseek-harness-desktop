@@ -48,7 +48,7 @@ esac
 
 if [[ "${DSH_LOCAL_SIGNING:-0}" == "1" \
     && ( -n "${DSH_SIGN_IDENTITY:-}" || -n "${DSH_SIGN_KEYCHAIN:-}" ) ]]; then
-  echo "DSH_LOCAL_SIGNING=1 uses its own fixed managed keychain; do not combine it with DSH_SIGN_IDENTITY or DSH_SIGN_KEYCHAIN." >&2
+  echo "DSH_LOCAL_SIGNING=1 selects a verified local signing identity; do not combine it with DSH_SIGN_IDENTITY or DSH_SIGN_KEYCHAIN." >&2
   exit 2
 fi
 
@@ -230,9 +230,9 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.6.9</string>
+  <string>1.7.1</string>
   <key>CFBundleVersion</key>
-  <string>17</string>
+  <string>19</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>NSPrincipalClass</key>

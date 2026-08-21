@@ -8,7 +8,7 @@ This repository uses an original companion-app icon. It does not grant any right
 
 ## Upstream DeepSeek Harness
 
-This project is designed to work with the separately installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) runtime, currently pinned to `@deepseek-ai/dsh@0.1.0-rc.6` for compatibility testing. The upstream project is available under the MIT License:
+This project is designed to work with the separately installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) runtime, currently pinned to `@deepseek-ai/dsh@0.1.1-rc.2` for compatibility testing. The upstream project is available under the MIT License:
 
 > Copyright (c) 2026 DeepSeek
 

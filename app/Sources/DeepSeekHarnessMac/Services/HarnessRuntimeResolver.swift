@@ -17,8 +17,31 @@ enum HarnessRuntimeResolution {
 }
 
 enum HarnessRuntimeResolver {
-    static let supportedVersion = "0.1.0-rc.6"
+    static let supportedVersion = "0.1.1-rc.2"
     static let supportedSHA256 = "c0226687bb20f45c603ec6fe50f3de16d1c3510c3a803304ec575ef9bc366c62"
+
+    private struct VerifiedDependency {
+        let relativePath: String
+        let sha256: String
+    }
+
+    // The launcher and persistent-shell prompt fix remain byte-identical in
+    // rc.2. Pin them and the newer DeepSeek adapter's image serializer so a
+    // locally edited node_modules tree cannot satisfy a launcher-only check.
+    private static let verifiedDependencies = [
+        VerifiedDependency(
+            relativePath: "node_modules/@deepseek-ai/dsh-terminal-bash/lib/index.js",
+            sha256: "3585f6db352babc2df9768337261445a93033f3cdf212b2a54aefc3b83506f83"
+        ),
+        VerifiedDependency(
+            relativePath: "node_modules/@deepseek-ai/dsh-tool-bash-persistent/lib/index.js",
+            sha256: "0a35823964f5c4c3afe8a847dcd99eebbaae07c87198d51ee74aaf3866b6b609"
+        ),
+        VerifiedDependency(
+            relativePath: "node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js",
+            sha256: "eed9492246cc6451f060de211768d3128388046478deae7f1959de7cde56ea82"
+        ),
+    ]
 
     static func resolve() -> HarnessRuntimeResolution {
         var rejected: [String] = []
@@ -40,6 +63,14 @@ enum HarnessRuntimeResolver {
             }
             guard version == supportedVersion else {
                 rejected.append("\(candidate.path)：版本 \(version) 尚未通过兼容测试")
+                continue
+            }
+
+            let runtimeRoot = resolved
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+            if let dependencyFailure = dependencyIntegrityFailure(in: runtimeRoot) {
+                rejected.append("\(candidate.path)：\(dependencyFailure)")
                 continue
             }
 
@@ -110,6 +141,21 @@ enum HarnessRuntimeResolver {
     private static func sha256(of url: URL) -> String? {
         guard let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else { return nil }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func dependencyIntegrityFailure(in runtimeRoot: URL) -> String? {
+        for dependency in verifiedDependencies {
+            let file = runtimeRoot
+                .appendingPathComponent(dependency.relativePath)
+                .resolvingSymlinksInPath()
+            guard let digest = sha256(of: file) else {
+                return "缺少已验证的运行时依赖 \(dependency.relativePath)"
+            }
+            guard digest == dependency.sha256 else {
+                return "运行时依赖 \(dependency.relativePath) 的内容与官方 \(supportedVersion) 不一致"
+            }
+        }
+        return nil
     }
 
     private static func version(of executable: URL) -> String? {

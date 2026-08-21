@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "verifiedAt": "2026-08-14",
-  "expiresAt": "2026-09-14",
+  "verifiedAt": "2026-08-21",
+  "expiresAt": "2026-09-21",
   "intersectionRule": "provider capabilities intersect adapter capabilities intersect Harness attachment capabilities",
   "providers": [
     {
@@ -13,17 +13,19 @@
       "protocols": { "chatCompletions": "supported", "responses": "supported" },
       "input": {
         "text": "supported",
-        "image": "unsupported",
+        "image": "supported",
         "video": "unsupported",
         "audio": "unsupported",
         "fileExtract": "local-tool"
       },
       "models": [
-        { "id": "deepseek-v4-pro", "lifecycle": "active", "input": ["text"] }
+        { "id": "deepseek-v4-flash", "lifecycle": "active", "input": ["text"] },
+        { "id": "deepseek-v4-pro", "lifecycle": "active", "input": ["text"] },
+        { "id": "deepseek-v4-flash-vision-exp", "lifecycle": "active", "input": ["text", "image"] }
       ],
       "notes": [
-        "The rc.6 official Harness adapter is text-only.",
-        "Images, PDFs and Appshots must use bounded local extraction/OCR before this route."
+        "Native image input is enabled only for the exact deepseek-v4-flash-vision-exp catalog ID after the companion, the current Web host route, and the adapter all agree.",
+        "deepseek-v4-flash and deepseek-v4-pro remain text-only in this companion catalog. PDFs, documents, unknown routes, and mixed batches stay managed locally; OCR is an explicit local-tool fallback, not an automatic image conversion."
       ],
       "sources": [
         "https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/github_copilot"

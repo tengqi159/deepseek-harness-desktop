@@ -9,7 +9,7 @@ Use the `mcp__artifacts__*` tools for files placed in the native Research Files 
 
 ## Capability boundary
 
-- DeepSeek's rc.6 official route is text-only. For PDFs, images and Appshots, use bounded local extraction, PDF rendering metadata, Accessibility text or local OCR. Do not claim the raw image was seen.
+- Only the exact `deepseek-official` / `deepseek-v4-flash-vision-exp` route may receive a native DeepSeek image block. Other DeepSeek model IDs remain text-only here; for PDFs, images and Appshots use bounded local extraction, PDF rendering metadata, Accessibility text or local OCR, and never claim raw pixels were seen.
 - The built-in `moonshotai-cn` and `moonshotai` pi-ai routes can accept text and image message blocks when the selected Kimi model declares image input.
 - The current Harness composer and MCP projection do not deliver video blocks. A video file must be handled by an explicit controlled video-upload tool; if that tool is unavailable, say so.
 - Kimi file extraction returns text. It is not page-layout or chart understanding. For layout-sensitive PDF work, inspect rendered pages and cite page numbers.

@@ -480,6 +480,26 @@ def run_checks(client: BridgeClient, root: Path, fixtures: dict[str, Path], repo
     ensure(not is_error and direct.get("routing_mode") == "direct_multimodal", f"image routing failed: {direct}")
     ensure(direct.get("requires_user_confirmation") is True and direct.get("data_sent") is False, "image routing skipped confirmation/no-send boundary")
     ensure(direct.get("mcp_can_transmit_multimodal_block") is False, "MCP incorrectly claimed image transmission")
+    flash_vision, is_error = client.tool(
+        "prepare_input",
+        {
+            "relative_path": "Appshots/fixture-shot/preview.png",
+            "provider": "deepseek-official",
+            "model": "deepseek-v4-flash-vision-exp",
+        },
+    )
+    ensure(
+        not is_error and flash_vision.get("routing_mode") == "direct_multimodal",
+        f"exact DeepSeek Flash Vision image routing failed: {flash_vision}",
+    )
+    deepseek_text_image, is_error = client.tool(
+        "prepare_input",
+        {"relative_path": "Appshots/fixture-shot/preview.png", "provider": "deepseek-official", "model": "deepseek-v4-pro"},
+    )
+    ensure(
+        not is_error and deepseek_text_image.get("routing_mode") == "local_extract",
+        f"non-vision DeepSeek image route was incorrectly promoted: {deepseek_text_image}",
+    )
     unverified_image, is_error = client.tool(
         "prepare_input",
         {"relative_path": "Inbox/fake-image.png", "provider": "moonshotai-cn", "model": "kimi-k3"},
@@ -512,7 +532,7 @@ def run_checks(client: BridgeClient, root: Path, fixtures: dict[str, Path], repo
     )
     ensure(not is_error and unknown.get("routing_mode") == "unsupported", f"unknown model did not fail closed: {unknown}")
     ensure(direct.get("registry_source") == "debug_override", "DEBUG registry override was not used")
-    reporter.pass_step("capability-registry multimodal/text/PDF/video routing")
+    reporter.pass_step("capability-registry exact vision/text/PDF/video routing")
 
     expect_tool_error(client, "inspect_file", {"path": "/etc/passwd"}, "relative")
     expect_tool_error(client, "read_text", {"path": "../outside-secret.txt"}, "traversal")
