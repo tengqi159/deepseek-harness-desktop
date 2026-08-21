@@ -11,12 +11,29 @@
 
 <p align="center">
   <a href="https://github.com/tengqi159/deepseek-harness-desktop/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tengqi159/deepseek-harness-desktop/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="源码预览版 1.6.9" src="https://img.shields.io/badge/source_preview-1.6.9-f59e0b">
+  <img alt="源码预览版 1.7.1" src="https://img.shields.io/badge/source_preview-1.7.1-f59e0b">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-M%20series-111827?logo=apple">
-  <img alt="上游 dsh rc.6" src="https://img.shields.io/badge/upstream_dsh-0.1.0--rc.6-334155">
+  <img alt="上游 dsh 0.1.1-rc.2" src="https://img.shields.io/badge/upstream_dsh-0.1.1--rc.2-334155">
 </p>
 
-## 1.6.9 这次解决了什么
+## 1.7.1（build 19）这次解决了什么
+
+这版把兼容锁更新到上游 `@deepseek-ai/dsh@0.1.1-rc.2`。保留上游已经修复的 persistent Bash 提示符问题，同时把视觉能力收敛到一个精确、可验证的模型路线，而不是把所有 DeepSeek 模型都标成多模态。
+
+- **Flash Vision 的图片仍然是图片。** 当前实际 provider/model 精确为 `deepseek-official` / `deepseek-v4-flash-vision-exp` 时，PNG、JPEG 或剪贴板图片会交给上游 composer：界面显示缩略图附件，适配器发送临时 image block，而不是写入一行 `[DeepSeek Harness managed attachment …]` 文本。
+- **其他路线不装懂。** `deepseek-v4-flash`、`deepseek-v4-pro`、未知模型、PDF、非图片、混合批次和超限图片仍留在本地受管文件路线。OCR 不会自动冒充识图；它只是用户或工作流明确选择的本地工具兜底。
+- **已有设置只做定向迁移。** Harness 的设置优先级高于内置模型目录，因此启动时只补齐精确 Vision 模型的 `inputModalities`，保留其他用户模型配置，并留下一个仅本机可读的迁移前备份。
+- **迁移到 rc.2 后仍有保障。** Web Profile、附件客户端、能力菜单和 MCP bridge 都按 rc.2 复核；应用启动前会校验上游 launcher、persistent-shell 修复与 DeepSeek 图片序列化器。
+
+### 真实 Vision 冒烟截图
+
+<p align="center">
+  <img src="docs/images/vision-smoke-1.7.1.jpg" alt="DeepSeek Harness 显示图片缩略图附件，并由精确 Flash Vision 路线给出视觉描述" width="838">
+</p>
+
+截图只使用合成的应用图标和一句演示提问。它展示的是我们需要的契约：输入框与会话中始终保留缩略图，模型描述的是视觉结构，而不是收到一段受管文件引用文字。
+
+## 1.6.9 稳定了什么
 
 这次不再叠加新概念，重点是把每天都会用到的附件路径做稳。
 
@@ -40,8 +57,8 @@
 
 图片可以加入对话，但这**不等于**当前模型一定收到原始像素：
 
-- 钉死的 DeepSeek 文字路线会把图片保留为本地受管上下文，工作流可按需调用本地提取/OCR 工具。
-- 只有已经验证、并且当前明确选中的视觉模型才会收到原生图片块。
+- 当前精确选中的 `deepseek-v4-flash-vision-exp` 才会收到原生图片块，并且必须与实时 Host 路由一致。
+- 基础 Flash 与 Pro 路线会把图片保留为本地受管上下文，工作流可按需调用本地提取/OCR 工具。
 - 选项未知、正在切换、混合文件或能力记录过期时，统一失败关闭到受管文件路线。
 
 这样文件仍然好用，也不会假装 DeepSeek 看到了根本没有发送给它的图片。
@@ -54,7 +71,7 @@
 
 原生层负责本地文件边界、macOS 权限、一次性 Appshot、精确 App 附加和可选 SSH 选择；上游 Harness 继续负责会话、模型选择、提供方适配器和原有工具框架。
 
-> 首页刻意使用这张干净的架构图，而不是打码后的个人桌面截图；只有能完全由隔离演示数据生成的产品截图，才会再加入公开文档。
+> 架构图和 Vision 冒烟截图均只使用隔离演示数据；个人文档、聊天、凭据与真实 App 上下文绝不会作为仓库图片发布。
 
 ## 重要边界
 
@@ -69,7 +86,7 @@
 需要 macOS 14+、Apple Silicon、Xcode Command Line Tools（Swift 5.10+）、Node.js 22 和指定的上游运行时。
 
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
+npm install -g @deepseek-ai/dsh@0.1.1-rc.2 --registry=https://registry.npmjs.org
 git clone https://github.com/tengqi159/deepseek-harness-desktop.git
 cd deepseek-harness-desktop
 ./scripts/build_and_run.sh package

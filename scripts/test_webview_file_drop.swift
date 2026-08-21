@@ -488,7 +488,8 @@ private final class RouteRecorder {
 
     func supports(provider: String, model: String) -> Bool {
         queries.append((provider, model))
-        return provider == "moonshotai-cn" && model == "kimi-k3"
+        return (provider == "moonshotai-cn" && model == "kimi-k3")
+            || (provider == "deepseek-official" && model == "deepseek-v4-flash-vision-exp")
     }
 }
 
@@ -1255,6 +1256,52 @@ private struct WebViewFileDropQA {
             label: "raw PNG paste with Caps Lock"
         )
 
+        // The companion must not use the display name as the authorization
+        // key. This is the exact configured DeepSeek Vision model ID. Once
+        // the live Host route matches, a pure image must remain an upstream
+        // image attachment: no native payload, no managed-reference draft text.
+        let deepSeekFlashVisionRoute: [String: Any] = [
+            "version": 1,
+            "sessionId": "session-A",
+            "provider": "deepseek-official",
+            "model": "deepseek-v4-flash-vision-exp"
+        ]
+        hostRouteRecorder.set(
+            provider: "deepseek-official",
+            model: "deepseek-v4-flash-vision-exp"
+        )
+        let hostChecksBeforeMatchingFlashVision = hostRouteRecorder.checks.count
+        try publishModelRoute(
+            to: webView,
+            route: deepSeekFlashVisionRoute,
+            routeRecorder: routeRecorder,
+            expectedQuery: ("deepseek-official", "deepseek-v4-flash-vision-exp")
+        )
+        try runLoop(
+            until: {
+                hostRouteRecorder.checks.count == hostChecksBeforeMatchingFlashVision + 1
+            },
+            timeout: 3,
+            label: "matching DeepSeek Flash Vision Host route validation"
+        )
+        try verifyRawPNGPastePassThrough(
+            webView,
+            window: window,
+            pngData: try Data(contentsOf: fixtures.png),
+            recorder: recorder,
+            eventProbe: applicationKeyEventProbe
+        )
+        for (label, url) in [("Flash Vision PNG", fixtures.png), ("Flash Vision JPG", fixtures.jpg)] {
+            try verifyPassThrough(
+                webView,
+                window: window,
+                pasteboard: makeFilePasteboard([url]),
+                recorder: recorder,
+                probe: probe,
+                label: label
+            )
+        }
+
         // A delayed capability event from another conversation must not grant
         // upstream image handling to the active DeepSeek conversation. The
         // page resolver still reports session-A, while this Kimi route belongs
@@ -1507,6 +1554,6 @@ private struct WebViewFileDropQA {
         )
 
         window.contentView = nil
-        print("WEBVIEW_FILE_DROP_QA_OK pass_through=7 native=14 pastes=5 cancelled=1 model_routes=7 image_limits=3 real_wkwebview=1 superclass_probe=1 local_event_monitor=1 static_contracts=5")
+        print("WEBVIEW_FILE_DROP_QA_OK pass_through=10 native=14 pastes=5 cancelled=1 model_routes=8 image_limits=3 real_wkwebview=1 superclass_probe=1 local_event_monitor=1 static_contracts=5")
     }
 }

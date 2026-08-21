@@ -28,6 +28,37 @@ if [[ -n "${DSH_HARNESS_SIGNING_HOME:-}" \
   exit 2
 fi
 
+# Prefer an identity that is already visible to the user's keychain search
+# list. This is both the normal `codesign` lookup path and the least invasive
+# option: no keychain, password file, trust setting, or access-control entry is
+# created or changed. In particular, do not create a second identity merely
+# because an older helper-owned keychain is incomplete.
+SEARCH_LIST_OUTPUT="$(/usr/bin/security find-identity -v -p codesigning 2>/dev/null)" || {
+  echo "Unable to inspect the user keychain search list; refusing to change signing keychains." >&2
+  exit 1
+}
+SEARCH_LIST_IDENTITIES="$(
+  /usr/bin/printf '%s\n' "$SEARCH_LIST_OUTPUT" \
+    | /usr/bin/awk -v name="$IDENTITY_NAME" \
+      '$0 ~ ("\\\"" name "\\\"") && $2 ~ /^[0-9A-F]{40}$/ { print $2 }'
+)"
+if [[ -n "$SEARCH_LIST_IDENTITIES" ]]; then
+  SEARCH_LIST_COUNT="$(
+    /usr/bin/printf '%s\n' "$SEARCH_LIST_IDENTITIES" \
+      | /usr/bin/awk 'NF { count += 1 } END { print count + 0 }'
+  )"
+  if [[ "$SEARCH_LIST_COUNT" -ne 1 ]]; then
+    echo "Multiple $IDENTITY_NAME identities are visible; refusing to guess which one to use." >&2
+    exit 1
+  fi
+  SEARCH_LIST_IDENTITY="$(/usr/bin/printf '%s\n' "$SEARCH_LIST_IDENTITIES" | /usr/bin/sed -n '1p')"
+  echo "Reusing the existing $IDENTITY_NAME identity from the user keychain search list." >&2
+  # A blank second line deliberately tells build_and_run.sh to use the normal
+  # user keychain search list rather than pinning codesign to a managed file.
+  /usr/bin/printf '%s\n\n' "$SEARCH_LIST_IDENTITY"
+  exit 0
+fi
+
 if [[ -L "$STATE_DIR" \
     || -L "$KEYCHAIN" \
     || -L "$OWNERSHIP_MARKER" \
@@ -56,19 +87,21 @@ existing_identity() {
     | /usr/bin/awk -v name="$IDENTITY_NAME" '$0 ~ name { print $2; exit }'
 }
 
-REBUILD=0
-if [[ ! -f "$KEYCHAIN" || ! -f "$PASSWORD_FILE" ]]; then
-  REBUILD=1
+CREATE_MANAGED_KEYCHAIN=0
+if [[ ! -e "$KEYCHAIN" ]]; then
+  CREATE_MANAGED_KEYCHAIN=1
+elif [[ ! -f "$KEYCHAIN" || ! -f "$PASSWORD_FILE" ]]; then
+  echo "The helper-owned signing keychain is incomplete; it will not be replaced automatically: $KEYCHAIN" >&2
+  exit 1
 elif ! /usr/bin/security unlock-keychain -p "$(<"$PASSWORD_FILE")" "$KEYCHAIN" 2>/dev/null; then
-  REBUILD=1
+  echo "The helper-owned signing keychain cannot be unlocked; it will not be replaced automatically: $KEYCHAIN" >&2
+  exit 1
 elif [[ ! "$(existing_identity)" =~ ^[0-9A-F]{40}$ ]]; then
-  REBUILD=1
+  echo "The helper-owned signing keychain has no usable $IDENTITY_NAME identity; it will not be replaced automatically: $KEYCHAIN" >&2
+  exit 1
 fi
 
-if [[ "$REBUILD" -eq 1 ]]; then
-  if [[ -f "$KEYCHAIN" ]]; then
-    /usr/bin/security delete-keychain "$KEYCHAIN"
-  fi
+if [[ "$CREATE_MANAGED_KEYCHAIN" -eq 1 ]]; then
   PASSWORD="$(/usr/bin/openssl rand -hex 32)"
   /usr/bin/printf '%s' "$PASSWORD" > "$PASSWORD_FILE"
   /bin/chmod 600 "$PASSWORD_FILE"
@@ -96,22 +129,29 @@ if [[ "$REBUILD" -eq 1 ]]; then
     -keyout "$PRIVATE_KEY" \
     -out "$CERTIFICATE_FILE" >/dev/null 2>&1
 
-  /usr/bin/openssl pkcs12 \
-    -export \
-    -legacy \
-    -out "$PKCS12_FILE" \
-    -inkey "$PRIVATE_KEY" \
-    -in "$CERTIFICATE_FILE" \
-    -passout "pass:$PASSWORD" >/dev/null 2>&1
+  PKCS12_COMMAND=(
+    /usr/bin/openssl pkcs12
+    -export
+    -out "$PKCS12_FILE"
+    -inkey "$PRIVATE_KEY"
+    -in "$CERTIFICATE_FILE"
+    -passout "pass:$PASSWORD"
+  )
+  # `-legacy` is required by OpenSSL 3 for a PKCS#12 import that macOS Security
+  # accepts, but macOS's bundled LibreSSL does not implement that option.
+  if /usr/bin/openssl version 2>/dev/null | /usr/bin/grep -q '^OpenSSL 3'; then
+    PKCS12_COMMAND+=( -legacy )
+  fi
+  "${PKCS12_COMMAND[@]}" >/dev/null 2>&1
 
   /usr/bin/security import "$PKCS12_FILE" \
     -k "$KEYCHAIN" \
     -P "$PASSWORD" \
     -T /usr/bin/codesign >/dev/null
-  /usr/bin/security add-trusted-cert \
-    -r trustRoot \
-    -k "$KEYCHAIN" \
-    "$CERTIFICATE_FILE"
+  # `add-trusted-cert` writes user trust settings and can require interactive
+  # authorization. A local development identity only needs its private key and
+  # code-signing certificate for codesign; it does not need to become a trusted
+  # root certificate.
   /usr/bin/security set-key-partition-list \
     -S apple-tool:,apple: \
     -s \

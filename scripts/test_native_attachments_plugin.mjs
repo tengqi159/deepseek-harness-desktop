@@ -599,7 +599,7 @@ assert.deepEqual(manifest.dsh.client.inject, [
 assert.equal(manifest.exports["./client"], "./lib/client.js");
 assert.equal(
   manifest.peerDependencies["@deepseek-ai/dsh-client-ui-model-selection"],
-  "^0.1.0-rc.6"
+  "^0.1.1-rc.2"
 );
 
 const patch = fs.readFileSync(patchPath, "utf8");

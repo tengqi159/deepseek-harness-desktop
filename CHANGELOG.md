@@ -12,6 +12,20 @@ This project is an unofficial companion and versions its native wrapper independ
 - Clean-machine installation and Gatekeeper acceptance testing.
 - Broader architecture qualification beyond the currently tested Apple Silicon build.
 
+## [1.7.1-source-preview] - 2026-08-21
+
+### Fixed
+
+- Moved the compatibility lock to upstream `@deepseek-ai/dsh@0.1.1-rc.2` and verified the launcher, persistent-shell prompt fix, and DeepSeek image serializer before startup.
+- Restored upstream image attachment pass-through for the exact `deepseek-official` / `deepseek-v4-flash-vision-exp` route. A verified pure image now stays a thumbnail/image block instead of becoming a visible managed-reference draft line.
+- Kept `deepseek-v4-flash`, `deepseek-v4-pro`, unknown routes, PDFs, mixed batches, and over-limit images on the managed-file route. OCR remains an explicit local-tool fallback.
+- Added an idempotent, owner-only settings migration so an existing `llm-deepseek.models` list cannot silently override the Vision capability supplied by the managed Web profile.
+
+### Changed
+
+- Updated the native attachment and capability-menu peer dependency ranges to the rc.2 client packages after checking their public slot and MCP integration surfaces.
+- Added regression coverage for exact Vision route pass-through, capability alignment, settings migration, and Artifact Bridge routing.
+
 ## [1.6.9-source-preview] - 2026-08-15
 
 ### Fixed

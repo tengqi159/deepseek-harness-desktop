@@ -11,12 +11,29 @@
 
 <p align="center">
   <a href="https://github.com/tengqi159/deepseek-harness-desktop/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tengqi159/deepseek-harness-desktop/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Source Preview 1.6.9" src="https://img.shields.io/badge/source_preview-1.6.9-f59e0b">
+  <img alt="Source Preview 1.7.1" src="https://img.shields.io/badge/source_preview-1.7.1-f59e0b">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-M%20series-111827?logo=apple">
-  <img alt="Upstream dsh rc.6" src="https://img.shields.io/badge/upstream_dsh-0.1.0--rc.6-334155">
+  <img alt="Upstream dsh 0.1.1-rc.2" src="https://img.shields.io/badge/upstream_dsh-0.1.1--rc.2-334155">
 </p>
 
-## What changed in 1.6.9
+## What changed in 1.7.1 (build 19)
+
+This source preview moves the compatibility lock to upstream `@deepseek-ai/dsh@0.1.1-rc.2`. It keeps the upstream persistent-Bash prompt fix and adds an exact, fail-closed Vision route rather than labeling every DeepSeek model as multimodal.
+
+- **Flash Vision images stay images.** When the live provider/model is exactly `deepseek-official` / `deepseek-v4-flash-vision-exp`, a PNG/JPEG/image clipboard paste is handed to the upstream composer. You see its thumbnail attachment, and the adapter serializes the transient request as an image block—not a `[DeepSeek Harness managed attachment …]` line.
+- **Other routes remain honest.** `deepseek-v4-flash`, `deepseek-v4-pro`, unknown models, PDFs, non-images, mixed batches, and over-limit images remain managed locally. OCR is never an automatic substitute for raw vision; it is an explicit local-tool fallback.
+- **Existing settings are migrated narrowly.** Harness settings override the bundled catalog, so launch repairs only the exact Vision model's `inputModalities` record, keeps all other user model settings intact, and saves one owner-only pre-migration backup.
+- **Upgrade-safe integrations.** The managed Web profile, attachment client, capability menu, and MCP bridges are tested against rc.2. The app checks the upstream launcher, persistent-shell fix, and DeepSeek image serializer before it launches.
+
+### Real Vision smoke test
+
+<p align="center">
+  <img src="docs/images/vision-smoke-1.7.1.jpg" alt="DeepSeek Harness showing a thumbnail image attachment and a visual description from the exact Flash Vision route" width="838">
+</p>
+
+The screenshot uses a synthetic app icon and a one-line demo prompt. It shows the desired contract: the composer and conversation retain a thumbnail, while the model describes visual structure rather than receiving a managed-file reference sentence.
+
+## What 1.6.9 stabilized
 
 This source preview focuses on making the everyday attachment path dependable rather than adding another layer of complexity.
 
@@ -40,8 +57,8 @@ This source preview focuses on making the everyday attachment path dependable ra
 
 Dropping an image is supported. That does **not** automatically mean the selected model receives raw pixels:
 
-- The pinned DeepSeek text route keeps the image as managed local context; the workflow may use local extraction/OCR tools on demand.
-- A direct image block is used only for a verified, currently selected visual model.
+- `deepseek-v4-flash-vision-exp` receives a direct image block only when the live host route matches that exact ID.
+- The base Flash and Pro routes keep images as managed local context; the workflow may use local extraction/OCR tools on demand.
 - Unknown, changing, mixed, or expired routes fail closed to the managed-file path.
 
 This keeps file handling useful without claiming that DeepSeek saw an image it was never sent.
@@ -54,7 +71,7 @@ This keeps file handling useful without claiming that DeepSeek saw an image it w
 
 The native layer owns the local file boundary, macOS permissions, one-shot Appshots, exact-app attachment, and optional SSH selection. Upstream Harness continues to own conversations, model selection, provider adapters, and its normal tool framework.
 
-> The README intentionally uses this clean diagram rather than a redacted personal desktop screenshot. Fresh product screenshots will be added only when they can be made entirely from isolated demo data.
+> The architecture diagram and the Vision smoke test use only isolated demo data. Personal documents, chats, credentials, and live app context are never published as repository screenshots.
 
 ## Important boundaries
 
@@ -69,7 +86,7 @@ The native layer owns the local file boundary, macOS permissions, one-shot Appsh
 Requirements: macOS 14+, Apple Silicon, Xcode Command Line Tools with Swift 5.10+, Node.js 22, and the pinned upstream runtime.
 
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmjs.org
+npm install -g @deepseek-ai/dsh@0.1.1-rc.2 --registry=https://registry.npmjs.org
 git clone https://github.com/tengqi159/deepseek-harness-desktop.git
 cd deepseek-harness-desktop
 ./scripts/build_and_run.sh package

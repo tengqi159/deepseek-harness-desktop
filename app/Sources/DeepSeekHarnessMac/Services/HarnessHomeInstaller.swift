@@ -48,6 +48,10 @@ enum HarnessHomeInstaller {
             permissions: 0o600,
             fileManager: fileManager
         )
+        try DeepSeekModelCatalogMigration.reconcile(
+            settingsAt: dshHome.appendingPathComponent("settings.yaml"),
+            fileManager: fileManager
+        )
 
         let integrationPatch = integrationRoot
             .appendingPathComponent("cordis.macos-computer-use.patch.yml", isDirectory: false)

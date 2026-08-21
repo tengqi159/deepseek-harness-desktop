@@ -50,14 +50,14 @@
 
 # Additive browser-only companion for native managed-file drops. The package
 # lives in the managed Web profile's node_modules and declares the official
-# rc.6 dsh.client entry; no upstream Harness bundle is patched.
+# rc.2 dsh.client entry; no upstream Harness bundle is patched.
 - insert:
     - id: native-attachments
       name: '@tengqi/dsh-native-attachments'
 
 # Additive client-only capability menu. It reads the official live command,
 # Skill, and Loader inventories, then contributes one small control through the
-# rc.6 conversation.input.left slot. No upstream DOM or package is patched.
+# rc.2 conversation.input.left slot. No upstream DOM or package is patched.
 - insert:
     - id: capability-catalog
       name: '@tengqi/dsh-capability-catalog'
